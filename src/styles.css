@@ -2208,84 +2208,92 @@ kbd {
   right: 16px;
   bottom: 16px;
   z-index: 8;
-  min-width: 225px;
-  padding: 11px 40px 11px 12px;
-  border: 1px solid #1fa5ff;
+  width: 225px;
+  min-height: 61px;
+  padding: 9px 36px 11px 12px;
   border-radius: 8px;
-  background: #1c1c1c;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  background: #000;
+  box-shadow: 0 4px 6.1px rgba(0, 0, 0, 0.25);
   cursor: default;
   animation: menu-in 0.18s ease-out;
 }
 
 .update-toast__title {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 500;
-  line-height: 22px;
+  line-height: 16px;
   color: #fff;
+  white-space: nowrap;
 }
 
 .update-toast__link {
-  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
   padding: 0;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
+  line-height: 16px;
   color: #1fa5ff;
 }
 
 .update-toast__link:hover {
-  text-decoration: underline;
+  filter: brightness(1.2);
 }
 
 .update-toast__close {
   position: absolute;
   top: 9px;
-  right: 9px;
+  right: 10px;
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
+  width: 14px;
+  height: 14px;
   color: #fff;
+  opacity: 0.9;
 }
 
 .update-toast__close:hover {
-  background: #2c2c2c;
+  opacity: 1;
 }
 
 .update-toast__progress {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-top: 8px;
+  margin-top: 10px;
   font-size: 13px;
-  color: var(--text-muted);
+  line-height: 16px;
+  color: #1fa5ff;
 }
 
 .update-toast__bar {
-  height: 4px;
+  height: 3px;
   border-radius: 2px;
-  background: #3a3a3a;
+  background: #2a2a2a;
   overflow: hidden;
 }
 
 .update-toast__bar span {
   display: block;
   height: 100%;
-  background: var(--accent-bright);
+  background: #1fa5ff;
   transition: width 0.15s;
 }
 
 .update-toast__error {
-  margin-top: 6px;
+  margin-top: 8px;
   font-size: 13px;
+  line-height: 16px;
   color: #ff8a80;
 }
 
 .update-toast__note {
-  margin-top: 6px;
+  margin-top: 10px;
   font-size: 13px;
-  color: var(--text-muted);
+  line-height: 16px;
+  color: #1fa5ff;
 }
 
 /* ---------- Settings → About ---------- */

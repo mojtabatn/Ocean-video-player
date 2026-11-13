@@ -1,7 +1,7 @@
 {
   "name": "ocean-player",
   "productName": "Ocean Player",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Ocean — a minimal video player for Windows",
   "main": "dist-electron/main.cjs",
   "private": true,

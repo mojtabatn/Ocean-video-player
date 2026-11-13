@@ -123,7 +123,11 @@ export async function downloadAndInstall(onProgress: (p: UpdateProgress) => void
       } else {
         await shell.openPath(file);
       }
-      setTimeout(() => app.quit(), 800);
+      // Let the installer take over: it replaces the files in place and starts the new version itself.
+      setTimeout(() => {
+        app.quit(); // runs the normal shutdown (stops ffmpeg so the installer can replace its files)
+        setTimeout(() => app.exit(0), 3000);
+      }, installed ? 600 : 800);
     } else {
       shell.showItemInFolder(file);
     }
