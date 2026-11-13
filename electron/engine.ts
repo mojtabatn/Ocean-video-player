@@ -24,7 +24,7 @@ const MP4_COPY_AUDIO = ['aac', 'mp3', 'opus', 'flac'];
 const TEXT_SUBS = ['subrip', 'srt', 'ass', 'ssa', 'webvtt', 'mov_text', 'text', 'microdvd', 'subviewer', 'sami', 'realtext'];
 
 /** `src` is what ffmpeg reads: the file path, or for online media the local chunk-cache URL. */
-type Session = { input: string; src: string; info: MediaInfo; proc?: ChildProcess; subProc?: ChildProcess };
+type Session = { input: string; src: string; info: MediaInfo; proc?: ChildProcess; subProc?: ChildProcess; subWin?: { from: number; to: number } };
 const sessions = new Map<string, Session>();
 
 let caps: Capabilities = { hevc: false, av1: true, vp9: true };
@@ -265,12 +265,8 @@ export async function streamArgs(req: StreamRequest): Promise<{ args: string[]; 
     '-sn', '-dn', '-map_chapters', '-1', '-max_muxing_queue_size', '4096',
     '-f', 'mp4', '-movflags', 'frag_keyframe+empty_moov+default_base_moof', '-frag_duration', '1000000', 'pipe:1',
   );
-  // Online files: text subtitle tracks are written as SRT to extra pipes while the stream runs, so they
-  // arrive ahead of playback without reading the whole remote file first.
-  const liveTracks = info.isUrl ? info.subtitles.filter((t) => t.kind === 'text').slice(0, 6).map((t) => t.index) : [];
-  liveTracks.forEach((track, k) => {
-    args.push('-map', `0:s:${track}`, '-c:s', 'srt', '-flush_packets', '1', '-f', 'srt', `pipe:${3 + k}`);
-  });
+  // Online text subtitles are read by a separate job (see ensureSubtitles), never from the video stream.
+  const liveTracks: number[] = [];
   return { args, liveTracks };
 }
 
@@ -296,9 +292,7 @@ export async function handleStream(request: Request): Promise<Response> {
   const { args, liveTracks } = await streamArgs(req);
   const proc = spawnFfmpeg(args, liveTracks.length);
   s.proc = proc;
-  const mainPass: LivePass = { id: ++passCounter, kind: 'main', from: req.start };
-  liveTracks.forEach((track, k) => readLiveSubtitles(proc, 3 + k, sessionId, track, req.start, mainPass));
-  backfillSubtitles(s, sessionId, liveTracks, req.start);
+  ensureSubtitles(sessionId, req.start);
   let stderr = '';
   proc.stderr?.on('data', (d) => {
     stderr = (stderr + d.toString()).slice(-4000);
@@ -410,22 +404,34 @@ function readLiveSubtitles(proc: ChildProcess, fd: number, sessionId: string, tr
 }
 
 /**
- * After a seek the stream restarts at a video keyframe, so subtitles already on screen at that moment (they
- * started earlier) never pass through it. A short subtitle-only read of the window before the restart point
- * delivers them. It shares the chunk cache with the stream, so it costs almost no extra download.
+ * Online text subtitles come from their own ffmpeg job that reads a window of the file with absolute
+ * timestamps (-copyts), so cue times never depend on where the video stream happened to restart.
+ * The window is [t-20, t+150]; playback asks for the next one (continuing at the old window's end)
+ * once it gets within 40 s of the edge, and a seek outside the window starts a fresh one.
+ * Each window replaces earlier cues of its own stretch (LivePass kind 'back').
  */
-const BACKFILL_SECONDS = 40;
-function backfillSubtitles(s: Session, sessionId: string, tracks: number[], start: number) {
+const SUB_BEHIND = 20;
+const SUB_SPAN = 170;
+const SUB_AHEAD = 40;
+export function ensureSubtitles(sessionId: string, t: number) {
+  const s = sessions.get(sessionId);
+  if (!s || !s.info.isUrl) return;
+  const tracks = s.info.subtitles.filter((x) => x.kind === 'text').slice(0, 6).map((x) => x.index);
+  if (!tracks.length) return;
+  const w = s.subWin;
+  let from: number;
+  if (w && t >= w.from && t <= w.to - SUB_AHEAD) return;
+  if (w && t >= w.from && t < w.to) from = Math.max(0, w.to - 5);
+  else from = Math.max(0, t - SUB_BEHIND);
+  const to = from + SUB_SPAN;
   s.subProc?.kill('SIGKILL');
-  s.subProc = undefined;
-  if (!tracks.length || start <= 1) return;
-  const from = Math.max(0, start - BACKFILL_SECONDS);
-  const args = [...inputOpts(s.src), '-ss', from.toFixed(3), '-t', String(start - from + 2), '-i', s.src, '-vn', '-an', '-dn'];
+  const args = [...inputOpts(s.src), '-ss', from.toFixed(3), '-t', String(to - from), '-i', s.src, '-vn', '-an', '-dn', '-copyts'];
   tracks.forEach((track, k) => args.push('-map', `0:s:${track}`, '-c:s', 'srt', '-f', 'srt', `pipe:${3 + k}`));
   const proc = spawnFfmpeg(args, tracks.length);
   s.subProc = proc;
+  s.subWin = { from, to };
   proc.stdout?.on('data', () => {});
   proc.stderr?.on('data', () => {});
-  const pass: LivePass = { id: ++passCounter, kind: 'back', from, to: start };
-  tracks.forEach((track, k) => readLiveSubtitles(proc, 3 + k, sessionId, track, from, pass));
+  const pass: LivePass = { id: ++passCounter, kind: 'back', from, to };
+  tracks.forEach((track, k) => readLiveSubtitles(proc, 3 + k, sessionId, track, -s.info.startTime, pass));
 }

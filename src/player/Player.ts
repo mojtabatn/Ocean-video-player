@@ -53,6 +53,7 @@ export class Player {
   private restartSeq = 0;
   /** Live-extracted subtitle cues per embedded track, keyed by start time (deduplicated across restarts by start time + text). */
   private liveCues = new Map<number, Map<string, Cue>>();
+  private subAsk = 0;
 
   constructor() {
     const v = document.createElement('video');
@@ -94,7 +95,14 @@ export class Player {
       window.clearInterval(tick);
       this.set({ playing: false, time: this.time });
     });
-    on('timeupdate', () => this.set({ time: this.time }));
+    on('timeupdate', () => {
+      this.set({ time: this.time });
+      const now = Date.now();
+      if (this.sessionId && now - this.subAsk > 4000 && !v.paused) {
+        this.subAsk = now;
+        ocean?.ensureSubtitles(this.sessionId, this.time);
+      }
+    });
     on('seeked', () => this.set({ time: this.time }));
     on('ratechange', () => this.set({ rate: v.playbackRate }));
     on('progress', () => {

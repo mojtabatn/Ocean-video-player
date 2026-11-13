@@ -167,6 +167,7 @@ function registerIpc() {
     mediaCache.setCacheLimit(bytes);
     return mediaCache.enforceLimit();
   });
+  ipcMain.handle('media:subtitles', (_e, id: string, t: number) => engine.ensureSubtitles(id, t));
   ipcMain.handle('media:keyframe', (_e, id: string, t: number) => engine.keyframeBefore(id, t));
   ipcMain.handle('media:thumbnail', (_e, id: string, t: number, width: number) => engine.thumbnail(id, t, width));
   ipcMain.handle('media:extract-subtitle', (_e, id: string, index: number) => engine.extractSubtitle(id, index));
