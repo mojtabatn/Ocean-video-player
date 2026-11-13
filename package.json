@@ -1,0 +1,137 @@
+{
+  "name": "ocean-player",
+  "productName": "Ocean Player",
+  "version": "0.1.0",
+  "description": "Ocean \u2014 a minimal video player for Windows",
+  "main": "dist-electron/main.cjs",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "tsc --noEmit && vite build && node scripts/build-electron.mjs",
+    "start": "electron .",
+    "dist": "npm run build && node scripts/fetch-ffmpeg.mjs && electron-builder --win --x64",
+    "typecheck": "tsc --noEmit",
+    "fetch-ffmpeg": "node scripts/fetch-ffmpeg.mjs",
+    "test:e2e": "node tests/e2e.cjs"
+  },
+  "build": {
+    "appId": "pro.ocean.player",
+    "productName": "Ocean Player",
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "Ocean-Player-${version}-win-x64.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Ocean Player",
+      "artifactName": "Ocean-Player-Setup-${version}.${ext}"
+    },
+    "fileAssociations": [
+      {
+        "ext": [
+          "mp4",
+          "m4v",
+          "mkv",
+          "webm",
+          "mov",
+          "avi",
+          "wmv",
+          "flv",
+          "ts",
+          "m2ts",
+          "mts",
+          "mpg",
+          "mpeg",
+          "vob",
+          "3gp",
+          "rmvb",
+          "divx",
+          "ogv"
+        ],
+        "name": "Video",
+        "description": "Video file",
+        "role": "Viewer",
+        "icon": "build/icon.png"
+      },
+      {
+        "ext": [
+          "mp3",
+          "m4a",
+          "aac",
+          "flac",
+          "wav",
+          "opus",
+          "wma",
+          "mka"
+        ],
+        "name": "Audio",
+        "description": "Audio file",
+        "role": "Viewer",
+        "icon": "build/icon.png"
+      }
+    ],
+    "extraResources": [
+      {
+        "from": "vendor/ffmpeg/win32-x64",
+        "to": "ffmpeg",
+        "filter": [
+          "*.exe",
+          "*.dll"
+        ]
+      }
+    ],
+    "asar": true,
+    "electronFuses": {
+      "enableCookieEncryption": true
+    }
+  },
+  "dependencies": {
+    "@fontsource-variable/manrope": "^5.3.0",
+    "@fontsource-variable/vazirmatn": "^5.3.0",
+    "node-html-parser": "^9.0.7",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "electron": "^38.8.6",
+    "electron-builder": "^26.18.0",
+    "esbuild": "^0.28.2",
+    "typescript": "5.6",
+    "vite": "^6.4.6"
+  },
+  "author": "Ocean",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mojtabatn/Ocean-video-player.git"
+  },
+  "homepage": "https://github.com/mojtabatn/Ocean-video-player"
+}

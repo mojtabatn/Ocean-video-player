@@ -1,0 +1,13 @@
+/* Free (OFL) subtitle fonts bundled with the app. Vazirmatn comes from @fontsource. */
+@font-face {
+  font-family: 'Estedad';
+  src: url('./assets/fonts/Estedad-FD-VF.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Meem';
+  src: url('./assets/fonts/Meem-VF.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}

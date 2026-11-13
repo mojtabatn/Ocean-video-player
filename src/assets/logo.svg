@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="74" height="80" viewBox="685 232 74 80" fill="none">
+<path d="M754.455 264.566L698.409 233.126C692.647 229.895 685.5 234.001 685.5 240.564V303.439C685.5 309.99 692.647 314.105 698.409 310.876L754.455 279.437C760.293 276.16 760.293 267.84 754.455 264.566Z" fill="url(#paint1_linear_ocean_logo)"/>
+<mask id="mask0_ocean_logo" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="685" y="232" width="74" height="80">
+<path d="M754.455 264.566L698.409 233.126C692.647 229.895 685.5 234.001 685.5 240.564V303.439C685.5 309.99 692.647 314.105 698.409 310.876L754.455 279.437C760.293 276.16 760.293 267.84 754.455 264.566Z" fill="white"/>
+</mask>
+<g mask="url(#mask0_ocean_logo)">
+<path d="M677.22 251.652L682.481 253.997C686.899 255.966 691.723 256.881 696.564 256.667C701.405 256.454 706.128 255.119 710.352 252.77L721.622 246.501C726.179 243.967 731.269 242.516 736.49 242.264C741.712 242.011 746.921 242.964 751.706 245.046L761.585 249.333V281.821H677.22V251.652Z" fill="url(#paint2_linear_ocean_logo)"/>
+<path d="M677.22 269.153L682.481 271.498C686.899 273.466 691.723 274.381 696.564 274.168C701.405 273.955 706.128 272.62 710.352 270.271L721.622 264.001C726.179 261.467 731.269 260.016 736.49 259.764C741.712 259.512 746.921 260.464 751.706 262.546L761.585 266.834V299.321H677.22V269.153Z" fill="url(#paint3_linear_ocean_logo)"/>
+<path d="M677.22 287.747L682.481 290.092C686.899 292.061 691.723 292.975 696.564 292.762C701.405 292.549 706.128 291.214 710.352 288.865L721.622 282.595C726.179 280.061 731.269 278.611 736.49 278.358C741.712 278.106 746.921 279.058 751.706 281.14L761.585 285.428V317.916H677.22V287.747Z" fill="url(#paint4_linear_ocean_logo)"/>
+</g>
+<defs>
+<linearGradient id="paint1_linear_ocean_logo" x1="709.065" y1="206.823" x2="729.751" y2="337.429" gradientUnits="userSpaceOnUse">
+<stop stop-color="#1FA5FF"/>
+<stop offset="1" stop-color="#1053FF"/>
+</linearGradient><linearGradient id="paint2_linear_ocean_logo" x1="720.468" y1="293.111" x2="718.125" y2="231.271" gradientUnits="userSpaceOnUse">
+<stop stop-color="#1FA5FF"/>
+<stop offset="1" stop-color="#1053FF"/>
+</linearGradient><linearGradient id="paint3_linear_ocean_logo" x1="720.468" y1="310.611" x2="718.125" y2="248.771" gradientUnits="userSpaceOnUse">
+<stop stop-color="#1FA5FF"/>
+<stop offset="1" stop-color="#0B3BB5"/>
+</linearGradient><linearGradient id="paint4_linear_ocean_logo" x1="720.468" y1="329.206" x2="718.125" y2="267.366" gradientUnits="userSpaceOnUse">
+<stop stop-color="#1FA5FF"/>
+<stop offset="1" stop-color="#082B85"/>
+</linearGradient>
+</defs>
+</svg>

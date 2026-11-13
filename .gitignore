@@ -1,0 +1,17 @@
+node_modules/
+dist/
+dist-electron/
+release/
+vendor/ffmpeg/
+*.log
+tests/.parse.cjs
+.omdb-key
+
+# Not published: design sources, saved copies of the third-party site used by local tests, diagnostics
+design/
+tests/fixtures/
+tests/.*.mjs
+tests/.*.cjs
+
+# Commercial fonts: kept locally, not published
+src/assets/fonts-private/
