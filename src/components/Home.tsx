@@ -3,6 +3,7 @@ import type { OnlineTitle } from '../../shared/media';
 import logo from '../assets/logo.svg';
 import { useAccount } from '../lib/account';
 import { ocean } from '../lib/bridge';
+import { toggleBookmark, useBookmarks } from '../lib/bookmarks';
 
 type Props = { onPick: (t: OnlineTitle) => void; onOpenFile: () => void; onOpenSettings: () => void };
 
@@ -16,13 +17,15 @@ export function Home({ onPick, onOpenFile, onOpenSettings }: Props) {
   const rail = useRef<HTMLDivElement>(null);
 
   // Search covers the whole site archive; results take the place of the trending items.
+  const [tab, setTab] = useState<'trending' | 'bookmarks'>('trending');
+  const bookmarks = useBookmarks();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<OnlineTitle[] | null>(null);
   const [searching, setSearching] = useState(false);
   const searchSeq = useRef(0);
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 2 || !ocean) {
+    if (q.length < 2 || !ocean || tab !== 'trending') {
       setResults(null);
       setSearching(false);
       return;
@@ -37,7 +40,7 @@ export function Home({ onPick, onOpenFile, onOpenSettings }: Props) {
         .finally(() => seq === searchSeq.current && setSearching(false));
     }, 450);
     return () => window.clearTimeout(t);
-  }, [query]);
+  }, [query, tab]);
 
   const load = (force = false) => {
     setError(null);
@@ -77,7 +80,9 @@ export function Home({ onPick, onOpenFile, onOpenSettings }: Props) {
 
   // Start one card in, so the previous poster peeks in from the left as in the design (trending only;
   // search results start at the first one).
-  const shown = results ?? titles;
+  const q = query.trim().toLowerCase();
+  const savedShown = bookmarks.filter((b) => !q || `${b.title} ${b.persianTitle ?? ''}`.toLowerCase().includes(q));
+  const shown = tab === 'bookmarks' ? savedShown : results ?? titles;
 
   // IMDb ratings the site did not give (OMDb, cached), filled in quietly after the posters show.
   const [ratings, setRatings] = useState<Record<string, string | null>>({});
@@ -89,8 +94,8 @@ export function Home({ onPick, onOpenFile, onOpenSettings }: Props) {
   }, [shown]);
   useEffect(() => {
     if (!rail.current) return;
-    rail.current.scrollLeft = !results && titles && titles.length > 1 ? CARD + GAP : 0;
-  }, [titles, results]);
+    rail.current.scrollLeft = tab === 'trending' && !results && titles && titles.length > 1 ? CARD + GAP : 0;
+  }, [titles, results, tab]);
 
   // Drag to scroll: follows the pointer, then snaps to the nearest poster (with a flick carrying further).
   const drag = useRef({ active: false, moved: false, startX: 0, startScroll: 0, lastX: 0, lastT: 0, velocity: 0, suppressClick: false, id: -1 });
@@ -135,8 +140,9 @@ export function Home({ onPick, onOpenFile, onOpenSettings }: Props) {
     el.scrollBy({ left: dir * step, behavior: 'smooth' });
   };
 
-  const skeleton = (shown === null || shown.length === 0) && !(results && !searching);
-  const noResults = !!results && results.length === 0 && !searching;
+  const marks = tab === 'bookmarks';
+  const skeleton = !marks && (shown === null || shown.length === 0) && !(results && !searching);
+  const noResults = marks ? savedShown.length === 0 : !!results && results.length === 0 && !searching;
 
   return (
     <div className="home">
@@ -160,14 +166,21 @@ export function Home({ onPick, onOpenFile, onOpenSettings }: Props) {
       {signedIn && (
         <section className="home__section">
           <header className="home__head">
-            <h2 className="home__title" dir="auto">{results || searching ? `Results for “${query.trim()}”` : 'Trending Now'}</h2>
-            {!results && !searching && <span className="home__subtitle">
+            <div className="home__tabs" role="tablist">
+              <button role="tab" aria-selected={!marks} className={`home__tab ${!marks ? 'is-active' : ''}`} onClick={() => setTab('trending')}>
+                {results || searching ? `Results for “${query.trim()}”` : 'Trending Now'}
+              </button>
+              <button role="tab" aria-selected={marks} className={`home__tab ${marks ? 'is-active' : ''}`} onClick={() => setTab('bookmarks')}>
+                Bookmarks{bookmarks.length ? <span className="home__count">{bookmarks.length}</span> : null}
+              </button>
+            </div>
+            {!marks && !results && !searching && <span className="home__subtitle">
               <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
                 <path d="M2 1.2v7.6c0 .5.5.8.9.5l6-3.8c.4-.2.4-.8 0-1L2.9.7C2.5.4 2 .7 2 1.2Z" fill="currentColor" />
               </svg>
               Click a poster to watch online
             </span>}
-            {error && (() => {
+            {!marks && error && (() => {
               // Errors may carry "[file:<path>]": the page the site returned, saved for diagnosis.
               const file = /\[file:(.+?)\]$/.exec(error)?.[1];
               const text = error.replace(/\s*\[file:.+?\]$/, '');
@@ -193,7 +206,7 @@ export function Home({ onPick, onOpenFile, onOpenSettings }: Props) {
               <input
                 type="search"
                 value={query}
-                placeholder="Search movies & series..."
+                placeholder={marks ? 'Search bookmarks...' : 'Search movies & series...'}
                 spellCheck={false}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => {
@@ -240,11 +253,36 @@ export function Home({ onPick, onOpenFile, onOpenSettings }: Props) {
             }}
           >
             {noResults ? (
-              <div className="home__empty">Nothing found for “{query.trim()}”.</div>
+              <div className="home__empty">
+                {marks && !bookmarks.length ? 'No bookmarks yet. Tap the bookmark icon on a poster to keep it here.' : `Nothing found for “${query.trim()}”.`}
+              </div>
             ) : skeleton
               ? Array.from({ length: 10 }, (_, i) => <div key={i} className={`poster poster--skeleton ${shown === null || searching ? 'is-loading' : ''}`} />)
               : shown!.map((t) => (
-                  <button key={t.id} className="poster" onClick={() => onPick(t)} aria-label={t.title}>
+                  <div
+                    key={t.id}
+                    className="poster"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => onPick(t)}
+                    onKeyDown={(e) => e.key === 'Enter' && onPick(t)}
+                    aria-label={t.title}
+                  >
+                    <button
+                      className={`poster__mark ${bookmarks.some((b) => b.id === t.id) ? 'is-on' : ''}`}
+                      aria-label={bookmarks.some((b) => b.id === t.id) ? 'Remove bookmark' : 'Bookmark'}
+                      aria-pressed={bookmarks.some((b) => b.id === t.id)}
+                      title={bookmarks.some((b) => b.id === t.id) ? 'Remove bookmark' : 'Bookmark'}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleBookmark(t);
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
+                    >
+                      <svg width="16" height="18" viewBox="0 0 16 18" aria-hidden>
+                        <path d="M2.5 1.75h11a.75.75 0 0 1 .75.75v13.6a.5.5 0 0 1-.8.4L8 12.4l-5.45 4.1a.5.5 0 0 1-.8-.4V2.5a.75.75 0 0 1 .75-.75Z" fill="currentColor" fillOpacity="var(--mark-fill, 0)" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                      </svg>
+                    </button>
                     <img
                       src={ocean ? `ocean-img://i/?u=${encodeURIComponent(t.poster)}` : t.poster}
                       alt=""
@@ -262,7 +300,7 @@ export function Home({ onPick, onOpenFile, onOpenSettings }: Props) {
                         </span>
                       )}
                     </span>
-                  </button>
+                  </div>
                 ))}
           </div>
         </section>

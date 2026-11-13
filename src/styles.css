@@ -2485,3 +2485,73 @@ kbd {
 .titlebar__sep {
   margin: 0 6px 0 9px;
 }
+
+/* ---------- Home tabs + bookmarks ---------- */
+.home__tabs {
+  display: flex;
+  align-items: baseline;
+  gap: 22px;
+}
+
+.home__tab {
+  padding: 0;
+  font-size: 22px;
+  font-weight: 500;
+  color: #6f6f6f;
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+
+.home__tab:hover {
+  color: #b5b5b5;
+}
+
+.home__tab.is-active {
+  color: #fff;
+}
+
+.home__count {
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1fa5ff;
+  background: rgba(31, 165, 255, 0.14);
+  vertical-align: 3px;
+}
+
+.poster__mark {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  transform: translateY(-3px);
+  transition: opacity 0.18s, transform 0.18s, background 0.15s, color 0.15s;
+}
+
+.poster:hover .poster__mark,
+.poster:focus-within .poster__mark,
+.poster__mark.is-on {
+  opacity: 1;
+  transform: none;
+}
+
+.poster__mark:hover {
+  background: rgba(0, 0, 0, 0.85);
+}
+
+.poster__mark.is-on {
+  --mark-fill: 1;
+  color: #1fa5ff;
+}
+.poster[role="button"] { cursor: pointer; outline: none; }
