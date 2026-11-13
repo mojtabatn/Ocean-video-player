@@ -189,16 +189,19 @@ export function close(sessionId: string) {
 
 /**
  * Where a stream-copy seek to `t` really starts. ffmpeg lands on a seekable keyframe at or before `t`
- * (for MKV often an earlier cue point), so we ask ffmpeg itself: copy one packet with original
- * timestamps and read its pts. The stream is then started exactly there and the clock stays exact.
+ * (for MKV often an earlier cue point), so we ask ffmpeg itself by copying the first packets with their
+ * original timestamps. Two different times matter:
+ *  - `seek`: the `-ss` value to hand to the stream (always the probed `t` itself). Which keyframe a given
+ *    `-ss` lands on depends on the container's index, so re-seeking to the keyframe's own time can land
+ *    on an earlier keyframe, seconds before; only the very same `-ss` is guaranteed to land in the same place.
+ *  - `origin`: the media time the player's clock calls 0, i.e. the earliest start of video and the chosen
+ *    audio track in the repackaged stream (audio can lead the keyframe by a moment).
  */
-export async function keyframeBefore(sessionId: string, t: number, audioIndex = 0) {
+export async function keyframeBefore(sessionId: string, t: number, audioIndex = 0): Promise<{ seek: number; origin: number }> {
   const s = sessions.get(sessionId);
-  if (!s || t <= 0) return 0;
+  const exact = { seek: t, origin: t };
+  if (!s || t <= 0) return exact;
   try {
-    // Video and the chosen audio track are read together: the repackaged stream starts at whichever of
-    // them comes first (audio can lead the keyframe by a second or two in some files), and that is the
-    // instant the player's clock calls 0.
     const hasAudio = s.info.audio.length > 0;
     const { stdout } = await run(
       FFMPEG,
@@ -209,7 +212,7 @@ export async function keyframeBefore(sessionId: string, t: number, audioIndex = 
     const text = stdout.toString();
     const tbs = new Map<number, number>();
     for (const m of text.matchAll(/#tb (\d+): (\d+)\/(\d+)/g)) tbs.set(Number(m[1]), Number(m[2]) / Number(m[3]));
-    let first = Infinity;
+    let origin = Infinity;
     const seen = new Set<number>();
     for (const l of text.split('\n')) {
       if (!/^\d+,/.test(l)) continue;
@@ -218,12 +221,14 @@ export async function keyframeBefore(sessionId: string, t: number, audioIndex = 
       if (seen.has(st)) continue;
       seen.add(st);
       const tb = tbs.get(st);
-      if (tb) first = Math.min(first, Number(f[1]) * tb);
+      if (!tb) continue;
+      origin = Math.min(origin, Number(f[1]) * tb);
     }
-    const landing = first - s.info.startTime;
-    return Number.isFinite(landing) && landing <= t + 0.01 ? Math.max(0, landing) : t;
+    if (!Number.isFinite(origin)) return exact;
+    const o = origin - s.info.startTime;
+    return o <= t + 0.01 ? { seek: t, origin: Math.max(0, o) } : exact;
   } catch {
-    return t;
+    return exact;
   }
 }
 

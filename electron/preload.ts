@@ -36,7 +36,7 @@ const api = {
   clearCache: (): Promise<void> => ipcRenderer.invoke('cache:clear'),
   setCacheLimit: (bytes: number): Promise<number> => ipcRenderer.invoke('cache:set-limit', bytes),
   ensureSubtitles: (id: string, t: number): Promise<void> => ipcRenderer.invoke('media:subtitles', id, t),
-  keyframeBefore: (id: string, t: number, audio?: number): Promise<number> => ipcRenderer.invoke('media:keyframe', id, t, audio),
+  keyframeBefore: (id: string, t: number, audio?: number): Promise<{ seek: number; origin: number }> => ipcRenderer.invoke('media:keyframe', id, t, audio),
   thumbnail: (id: string, t: number, width: number): Promise<string | null> => ipcRenderer.invoke('media:thumbnail', id, t, width),
   extractSubtitle: (id: string, index: number): Promise<{ format: 'ass' | 'srt'; text: string } | null> =>
     ipcRenderer.invoke('media:extract-subtitle', id, index),

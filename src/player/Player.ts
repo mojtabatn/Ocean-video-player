@@ -228,17 +228,22 @@ export class Player {
     const restartId = ++this.restartSeq;
     const mode = this.snap.mode === 'transcode' || this.snap.burnSubtitle !== null ? 'transcode' : 'remux';
     this.set({ loading: true, time: at });
-    let start = at;
+    let seek = at;
+    let start = at; // media time at which the repackaged stream begins (the clock's zero)
     if (mode === 'remux' && at > 0) {
-      start = await ocean.keyframeBefore(this.sessionId, at, this.snap.audioIndex);
-      for (let probe = at + 2; start < minStart && probe < at + 14 && probe < this.snap.duration; probe += 2) {
-        start = Math.max(start, await ocean.keyframeBefore(this.sessionId, probe, this.snap.audioIndex));
+      const audio = this.snap.audioIndex;
+      let kf = await ocean.keyframeBefore(this.sessionId, at, audio);
+      for (let probe = at + 2; kf.origin < minStart && probe < at + 14 && probe < this.snap.duration; probe += 2) {
+        const next = await ocean.keyframeBefore(this.sessionId, probe, audio);
+        if (next.origin > kf.origin) kf = { seek: probe, origin: next.origin };
       }
+      seek = kf.seek;
+      start = kf.origin;
     }
     if (token !== this.loadToken || restartId !== this.restartSeq) return;
     this.offset = start;
     const q = new URLSearchParams({
-      t: start.toFixed(3),
+      t: seek.toFixed(3),
       a: String(this.snap.audioIndex),
       d: String(Math.min(0, this.snap.audioDelay)),
       m: mode,
