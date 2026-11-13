@@ -1,6 +1,8 @@
 // Updates from GitHub Releases: check for a newer version, read release notes, download the Windows installer
 // and run it. No third-party updater: the CI workflow publishes Ocean-Player-Setup-<version>.exe on each release.
 import { app, net, shell } from 'electron';
+import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { createWriteStream, promises as fs } from 'node:fs';
 import path from 'node:path';
 import { GITHUB_REPO, type UpdateInfo, type UpdateProgress } from '../shared/app';
@@ -113,7 +115,14 @@ export async function downloadAndInstall(onProgress: (p: UpdateProgress) => void
     onProgress({ received, total: total || received, done: true, file });
     if (process.env.OCEAN_UPDATE_DRYRUN) return;
     if (/\.exe$/i.test(file)) {
-      await shell.openPath(file); // runs the installer
+      // Installed copy (it has the installer's uninstaller beside it): update silently in the same folder and
+      // start the new version when done. A portable copy gets the normal installer wizard instead.
+      const installed = existsSync(path.join(path.dirname(process.execPath), 'Uninstall Ocean Player.exe'));
+      if (installed) {
+        spawn(file, ['/S', '--updated', '--force-run'], { detached: true, stdio: 'ignore' }).unref();
+      } else {
+        await shell.openPath(file);
+      }
       setTimeout(() => app.quit(), 800);
     } else {
       shell.showItemInFolder(file);
