@@ -192,22 +192,35 @@ export function close(sessionId: string) {
  * (for MKV often an earlier cue point), so we ask ffmpeg itself: copy one packet with original
  * timestamps and read its pts. The stream is then started exactly there and the clock stays exact.
  */
-export async function keyframeBefore(sessionId: string, t: number) {
+export async function keyframeBefore(sessionId: string, t: number, audioIndex = 0) {
   const s = sessions.get(sessionId);
   if (!s || t <= 0) return 0;
   try {
+    // Video and the chosen audio track are read together: the repackaged stream starts at whichever of
+    // them comes first (audio can lead the keyframe by a second or two in some files), and that is the
+    // instant the player's clock calls 0.
+    const hasAudio = s.info.audio.length > 0;
     const { stdout } = await run(
       FFMPEG,
-      ['-hide_banner', '-loglevel', 'error', '-copyts', ...inputOpts(s.src), '-ss', t.toFixed(3), '-i', s.src,
-        '-map', '0:v:0', '-c', 'copy', '-frames:v', '1', '-f', 'framecrc', '-'],
-      { timeout: 15000 },
+      ['-hide_banner', '-loglevel', 'error', '-copyts', ...inputOpts(s.src), '-ss', t.toFixed(3), '-t', '6', '-i', s.src,
+        '-map', '0:v:0', ...(hasAudio ? ['-map', `0:a:${audioIndex}?`] : []), '-c', 'copy', '-f', 'framecrc', '-'],
+      { timeout: 15000, maxBuffer: 16 * 1024 * 1024 },
     );
     const text = stdout.toString();
-    const tb = /#tb 0: (\d+)\/(\d+)/.exec(text);
-    const line = text.split('\n').find((l) => /^0,/.test(l));
-    if (!tb || !line) return t;
-    const pts = Number(line.split(',')[1]);
-    const landing = (pts * Number(tb[1])) / Number(tb[2]) - s.info.startTime;
+    const tbs = new Map<number, number>();
+    for (const m of text.matchAll(/#tb (\d+): (\d+)\/(\d+)/g)) tbs.set(Number(m[1]), Number(m[2]) / Number(m[3]));
+    let first = Infinity;
+    const seen = new Set<number>();
+    for (const l of text.split('\n')) {
+      if (!/^\d+,/.test(l)) continue;
+      const f = l.split(',');
+      const st = Number(f[0]);
+      if (seen.has(st)) continue;
+      seen.add(st);
+      const tb = tbs.get(st);
+      if (tb) first = Math.min(first, Number(f[1]) * tb);
+    }
+    const landing = first - s.info.startTime;
     return Number.isFinite(landing) && landing <= t + 0.01 ? Math.max(0, landing) : t;
   } catch {
     return t;

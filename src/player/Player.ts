@@ -230,9 +230,9 @@ export class Player {
     this.set({ loading: true, time: at });
     let start = at;
     if (mode === 'remux' && at > 0) {
-      start = await ocean.keyframeBefore(this.sessionId, at);
+      start = await ocean.keyframeBefore(this.sessionId, at, this.snap.audioIndex);
       for (let probe = at + 2; start < minStart && probe < at + 14 && probe < this.snap.duration; probe += 2) {
-        start = Math.max(start, await ocean.keyframeBefore(this.sessionId, probe));
+        start = Math.max(start, await ocean.keyframeBefore(this.sessionId, probe, this.snap.audioIndex));
       }
     }
     if (token !== this.loadToken || restartId !== this.restartSeq) return;
