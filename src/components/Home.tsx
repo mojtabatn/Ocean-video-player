@@ -18,6 +18,13 @@ export function Home({ onPick, onOpenFile, onOpenSettings }: Props) {
 
   // Search covers the whole site archive; results take the place of the trending items.
   const [tab, setTab] = useState<'trending' | 'bookmarks'>('trending');
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = () => setMenuOpen(false);
+    window.addEventListener('pointerdown', close);
+    return () => window.removeEventListener('pointerdown', close);
+  }, [menuOpen]);
   const bookmarks = useBookmarks();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<OnlineTitle[] | null>(null);
@@ -166,6 +173,7 @@ export function Home({ onPick, onOpenFile, onOpenSettings }: Props) {
       {signedIn && (
         <section className="home__section">
           <header className="home__head">
+            {/* Wide: two tabs side by side. Narrow (container query): one title that opens a small menu. */}
             <div className="home__tabs" role="tablist">
               <button role="tab" aria-selected={!marks} className={`home__tab ${!marks ? 'is-active' : ''}`} onClick={() => setTab('trending')}>
                 {results || searching ? `Results for “${query.trim()}”` : 'Trending Now'}
@@ -173,6 +181,27 @@ export function Home({ onPick, onOpenFile, onOpenSettings }: Props) {
               <button role="tab" aria-selected={marks} className={`home__tab ${marks ? 'is-active' : ''}`} onClick={() => setTab('bookmarks')}>
                 Bookmarks{bookmarks.length ? <span className="home__count">{bookmarks.length}</span> : null}
               </button>
+            </div>
+            <div className="home__switch" onPointerDown={(e) => e.stopPropagation()}>
+              <button className="home__tab is-active home__switch-btn" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}>
+                <span className="home__switch-label">
+                  {marks ? 'Bookmarks' : results || searching ? `Results for “${query.trim()}”` : 'Trending Now'}
+                </span>
+                {marks && bookmarks.length ? <span className="home__count">{bookmarks.length}</span> : null}
+                <svg width="12" height="8" viewBox="0 0 12 8" fill="none" aria-hidden>
+                  <path d="M1 1.5l5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              {menuOpen && (
+                <div className="home__switch-menu" role="menu">
+                  <button role="menuitem" className={!marks ? 'is-active' : ''} onClick={() => { setTab('trending'); setMenuOpen(false); }}>
+                    Trending Now
+                  </button>
+                  <button role="menuitem" className={marks ? 'is-active' : ''} onClick={() => { setTab('bookmarks'); setMenuOpen(false); }}>
+                    Bookmarks{bookmarks.length ? <span className="home__count">{bookmarks.length}</span> : null}
+                  </button>
+                </div>
+              )}
             </div>
             {!marks && !results && !searching && <span className="home__subtitle">
               <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
