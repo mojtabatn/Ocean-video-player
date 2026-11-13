@@ -1,5 +1,5 @@
 // Updates from GitHub Releases: check for a newer version, read release notes, download the Windows installer
-// and run it. No third-party updater: the CI workflow publishes Ocean-Player-Setup-<version>.exe on each release.
+// and run it. No third-party updater: the CI workflow publishes Ocean-Player-Setup.exe on each release.
 import { app, net, shell } from 'electron';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';

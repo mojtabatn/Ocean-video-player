@@ -7,7 +7,11 @@
 **A new style of video player for Windows.**
 Plays almost anything, looks the way a modern player should, and lets you pick and watch trending movies and series online.
 
-[**⬇ Download**](https://github.com/mojtabatn/Ocean-video-player/releases/latest) · [Features](#features) · [Online playback](#online-playback) · [Shortcuts](#keyboard-shortcuts) · [Build from source](#build-from-source) · [فارسی](#فارسی)
+<a href="https://github.com/mojtabatn/ocean-video-player/releases/latest/download/Ocean-Player-Setup.exe"><img src="https://img.shields.io/badge/Download%20Windows%20Version-0A84FF?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows Version" height="46" /></a>
+
+<sub>Always the latest installer · Windows 10/11, 64-bit</sub>
+
+[All releases](https://github.com/mojtabatn/Ocean-video-player/releases/latest) · [Features](#features) · [Online playback](#online-playback) · [Shortcuts](#keyboard-shortcuts) · [Build from source](#build-from-source) · [فارسی](#فارسی)
 
 <br />
 
@@ -122,7 +126,7 @@ Ocean can show what is trending on **Film2Media** and play it straight from the 
 ## Install
 
 1. Open the [**latest release**](https://github.com/mojtabatn/Ocean-video-player/releases/latest).
-2. Download **`Ocean-Player-Setup-<version>.exe`** and run it (installer, creates a Start-menu entry and file associations), **or** download the `…-win-x64.zip`, extract it somewhere and run `Ocean Player.exe`.
+2. Download **`Ocean-Player-Setup.exe`** and run it (installer, creates a Start-menu entry and file associations), **or** download the `…-win-x64.zip`, extract it somewhere and run `Ocean Player.exe`.
 3. Windows SmartScreen may warn because the app is not code-signed: choose **More info → Run anyway**.
 
 Requirements: Windows 10 or 11, 64-bit. A GPU with hardware HEVC decoding makes 4K HEVC files effortless; otherwise they are converted on the fly.
@@ -220,7 +224,7 @@ Made by **[Mojtaba Navade](https://t.me/mojtabatn)** · [Telegram](https://t.me/
 
 ### نصب
 
-1. از صفحه‌ی [**Releases**](https://github.com/mojtabatn/Ocean-video-player/releases/latest) فایل `Ocean-Player-Setup-<version>.exe` را دانلود و اجرا کن.
+1. از صفحه‌ی [**Releases**](https://github.com/mojtabatn/Ocean-video-player/releases/latest) فایل `Ocean-Player-Setup.exe` را دانلود و اجرا کن.
 2. اگر ویندوز هشدار SmartScreen داد (چون برنامه امضای دیجیتال ندارد): **More info ← Run anyway**.
 
 ### پخش آنلاین

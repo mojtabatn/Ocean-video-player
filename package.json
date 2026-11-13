@@ -49,7 +49,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "shortcutName": "Ocean Player",
-      "artifactName": "Ocean-Player-Setup-${version}.${ext}"
+      "artifactName": "Ocean-Player-Setup.${ext}"
     },
     "fileAssociations": [
       {
