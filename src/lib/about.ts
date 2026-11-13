@@ -3,6 +3,6 @@ export const ABOUT = {
   name: 'Ocean Player',
   tagline: 'Ocean · a new style of video player.',
   author: 'Mojtaba Navade',
-  telegram: '',
-  instagram: '',
+  telegram: 'https://t.me/mojtabatn',
+  instagram: 'https://www.instagram.com/mojtabanavade/',
 };
