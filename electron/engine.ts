@@ -9,7 +9,10 @@ import * as cache from './mediacache';
 import { parseSubtitles, type Cue } from '../src/lib/subtitles';
 
 /** Receives subtitle cues extracted live from a running stream (set by main.ts to forward to the window). */
-export let onLiveCues: (sessionId: string, track: number, cues: Cue[]) => void = () => {};
+/** `pass` identifies one ffmpeg read: its cues replace what earlier reads delivered for the same stretch of the film. */
+export type LivePass = { id: number; kind: 'main' | 'back'; from: number; to?: number };
+export let onLiveCues: (sessionId: string, track: number, cues: Cue[], pass: LivePass) => void = () => {};
+let passCounter = 0;
 export function setLiveCuesListener(fn: typeof onLiveCues) {
   onLiveCues = fn;
 }
@@ -293,7 +296,8 @@ export async function handleStream(request: Request): Promise<Response> {
   const { args, liveTracks } = await streamArgs(req);
   const proc = spawnFfmpeg(args, liveTracks.length);
   s.proc = proc;
-  liveTracks.forEach((track, k) => readLiveSubtitles(proc, 3 + k, sessionId, track, req.start));
+  const mainPass: LivePass = { id: ++passCounter, kind: 'main', from: req.start };
+  liveTracks.forEach((track, k) => readLiveSubtitles(proc, 3 + k, sessionId, track, req.start, mainPass));
   backfillSubtitles(s, sessionId, liveTracks, req.start);
   let stderr = '';
   proc.stderr?.on('data', (d) => {
@@ -384,7 +388,7 @@ export function cached(sessionId: string) {
 }
 
 /** Parses SRT arriving on an ffmpeg pipe block by block and forwards cues shifted to media time. */
-function readLiveSubtitles(proc: ChildProcess, fd: number, sessionId: string, track: number, offset: number) {
+function readLiveSubtitles(proc: ChildProcess, fd: number, sessionId: string, track: number, offset: number, pass: LivePass) {
   const stream = proc.stdio[fd] as NodeJS.ReadableStream | undefined;
   if (!stream) return;
   let pending = '';
@@ -396,11 +400,11 @@ function readLiveSubtitles(proc: ChildProcess, fd: number, sessionId: string, tr
     const complete = pending.slice(0, cut + 2);
     pending = pending.slice(cut + 2);
     const cues = parseSubtitles(complete).map((c) => ({ ...c, start: c.start + offset, end: c.end + offset }));
-    if (cues.length) onLiveCues(sessionId, track, cues);
+    if (cues.length) onLiveCues(sessionId, track, cues, pass);
   });
   stream.on('end', () => {
     const cues = parseSubtitles(pending).map((c) => ({ ...c, start: c.start + offset, end: c.end + offset }));
-    if (cues.length) onLiveCues(sessionId, track, cues);
+    if (cues.length) onLiveCues(sessionId, track, cues, pass);
   });
   stream.on('error', () => {});
 }
@@ -422,5 +426,6 @@ function backfillSubtitles(s: Session, sessionId: string, tracks: number[], star
   s.subProc = proc;
   proc.stdout?.on('data', () => {});
   proc.stderr?.on('data', () => {});
-  tracks.forEach((track, k) => readLiveSubtitles(proc, 3 + k, sessionId, track, from));
+  const pass: LivePass = { id: ++passCounter, kind: 'back', from, to: start };
+  tracks.forEach((track, k) => readLiveSubtitles(proc, 3 + k, sessionId, track, from, pass));
 }

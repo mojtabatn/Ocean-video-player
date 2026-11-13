@@ -282,8 +282,8 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     protocol.handle('ocean-media', mediaHandler);
     protocol.handle('ocean-stream', engine.handleStream);
-    engine.setLiveCuesListener((sessionId, track, cues) => {
-      for (const w of BrowserWindow.getAllWindows()) w.webContents.send('media:live-cues', sessionId, track, cues);
+    engine.setLiveCuesListener((sessionId, track, cues, pass) => {
+      for (const w of BrowserWindow.getAllWindows()) w.webContents.send('media:live-cues', sessionId, track, cues, pass);
     });
     protocol.handle('ocean-img', handleImage);
     forgetOldSiteCookies();

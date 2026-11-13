@@ -48,8 +48,8 @@ const api = {
     ipcRenderer.on('window:state', listener);
     return () => ipcRenderer.removeListener('window:state', listener);
   },
-  onLiveCues: (cb: (sessionId: string, track: number, cues: { start: number; end: number; text: string; top?: boolean }[]) => void) => {
-    const listener = (_e: unknown, id: string, track: number, cues: { start: number; end: number; text: string; top?: boolean }[]) => cb(id, track, cues);
+  onLiveCues: (cb: (sessionId: string, track: number, cues: { start: number; end: number; text: string; top?: boolean }[], pass: { id: number; kind: 'main' | 'back'; from: number; to?: number }) => void) => {
+    const listener = (_e: unknown, id: string, track: number, cues: { start: number; end: number; text: string; top?: boolean }[], pass: { id: number; kind: 'main' | 'back'; from: number; to?: number }) => cb(id, track, cues, pass);
     ipcRenderer.on('media:live-cues', listener);
     return () => ipcRenderer.removeListener('media:live-cues', listener);
   },

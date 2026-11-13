@@ -61,10 +61,20 @@ export class Player {
     v.preload = 'auto';
     v.playsInline = true;
     this.video = v;
-    ocean?.onLiveCues((sessionId, track, cues) => {
+    // Cues come from several ffmpeg reads (the stream, plus a short read before each seek point). Each read
+    // replaces whatever earlier reads delivered for its own stretch of the film, so reads that disagree by a few
+    // hundred ms never leave duplicates or neighbouring lines on screen together.
+    const seenPasses = new Set<string>();
+    ocean?.onLiveCues((sessionId, track, cues, pass) => {
       if (sessionId !== this.sessionId) return;
       let m = this.liveCues.get(track);
       if (!m) this.liveCues.set(track, (m = new Map()));
+      const first = `${track}:${pass.id}`;
+      if (!seenPasses.has(first)) {
+        seenPasses.add(first);
+        const to = pass.kind === 'back' ? (pass.to ?? pass.from) : Infinity;
+        for (const [k, c] of m) if (c.start >= pass.from - 0.001 && c.start < to) m.delete(k);
+      }
       for (const c of cues) m.set(`${Math.round(c.start * 1000)}|${c.text}`, c);
       this.set({ cueVersion: this.snap.cueVersion + 1 });
     });
@@ -381,7 +391,14 @@ export class Player {
 
   /** Cues of an embedded track extracted live from the stream so far, sorted by time. */
   liveCuesFor(track: number): Cue[] {
-    return [...(this.liveCues.get(track)?.values() ?? [])].sort((a, b) => a.start - b.start);
+    const sorted = [...(this.liveCues.get(track)?.values() ?? [])].sort((a, b) => a.start - b.start);
+    // Safety net: the same line twice within half a second is one line.
+    const out: Cue[] = [];
+    for (const c of sorted) {
+      const dup = out.slice(-6).some((o) => o.text === c.text && Math.abs(o.start - c.start) < 0.5);
+      if (!dup) out.push(c);
+    }
+    return out;
   }
 
   async thumbnail(t: number, width = 192) {
