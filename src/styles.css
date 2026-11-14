@@ -2482,9 +2482,9 @@ kbd {
 .home__tab {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   padding: 0;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 500;
   color: #6f6f6f;
   white-space: nowrap;
