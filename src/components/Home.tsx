@@ -6,6 +6,26 @@ import { ocean } from '../lib/bridge';
 import { toggleBookmark, useBookmarks } from '../lib/bookmarks';
 import { isFinished, removeHistory, useHistory, type HistoryItem } from '../lib/history';
 
+const TAB_ICONS = {
+  trending: (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M2.5 14.2l5.1-5.1 3.2 3.2 6.2-6.3" />
+      <path d="M12.6 6h4.4v4.4" />
+    </svg>
+  ),
+  bookmarks: (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden>
+      <path d="M5 3h10a.8.8 0 0 1 .8.8v13a.5.5 0 0 1-.8.4L10 13.5l-5 3.7a.5.5 0 0 1-.8-.4v-13A.8.8 0 0 1 5 3Z" />
+    </svg>
+  ),
+  history: (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <circle cx="10" cy="10" r="7.2" />
+      <path d="M10 5.8V10l2.8 1.8" />
+    </svg>
+  ),
+};
+
 type Props = { onPick: (t: OnlineTitle) => void; onResume: (h: HistoryItem) => void; onOpenFile: () => void; onOpenSettings: () => void };
 
 const CARD = 180;
@@ -181,17 +201,21 @@ export function Home({ onPick, onResume, onOpenFile, onOpenSettings }: Props) {
             {/* Wide: tabs side by side. Narrow (container query): one title that opens a small menu. */}
             <div className="home__tabs" role="tablist">
               <button role="tab" aria-selected={tab === 'trending'} className={`home__tab ${tab === 'trending' ? 'is-active' : ''}`} onClick={() => setTab('trending')}>
+                {TAB_ICONS.trending}
                 {tab === 'trending' && (results || searching) ? `Results for “${query.trim()}”` : 'Trending Now'}
               </button>
               <button role="tab" aria-selected={marks} className={`home__tab ${marks ? 'is-active' : ''}`} onClick={() => setTab('bookmarks')}>
+                {TAB_ICONS.bookmarks}
                 Bookmarks{bookmarks.length ? <span className="home__count">{bookmarks.length}</span> : null}
               </button>
               <button role="tab" aria-selected={hist} className={`home__tab ${hist ? 'is-active' : ''}`} onClick={() => setTab('history')}>
+                {TAB_ICONS.history}
                 Recently Watched
               </button>
             </div>
             <div className="home__switch" onPointerDown={(e) => e.stopPropagation()}>
               <button className="home__tab is-active home__switch-btn" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}>
+                {marks ? TAB_ICONS.bookmarks : hist ? TAB_ICONS.history : TAB_ICONS.trending}
                 <span className="home__switch-label">
                   {marks ? 'Bookmarks' : hist ? 'Recently Watched' : results || searching ? `Results for “${query.trim()}”` : 'Trending Now'}
                 </span>
@@ -203,12 +227,15 @@ export function Home({ onPick, onResume, onOpenFile, onOpenSettings }: Props) {
               {menuOpen && (
                 <div className="home__switch-menu" role="menu">
                   <button role="menuitem" className={tab === 'trending' ? 'is-active' : ''} onClick={() => { setTab('trending'); setMenuOpen(false); }}>
+                    {TAB_ICONS.trending}
                     Trending Now
                   </button>
                   <button role="menuitem" className={marks ? 'is-active' : ''} onClick={() => { setTab('bookmarks'); setMenuOpen(false); }}>
+                    {TAB_ICONS.bookmarks}
                     Bookmarks{bookmarks.length ? <span className="home__count">{bookmarks.length}</span> : null}
                   </button>
                   <button role="menuitem" className={hist ? 'is-active' : ''} onClick={() => { setTab('history'); setMenuOpen(false); }}>
+                    {TAB_ICONS.history}
                     Recently Watched
                   </button>
                 </div>

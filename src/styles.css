@@ -2489,11 +2489,14 @@ kbd {
 /* ---------- Home tabs + bookmarks ---------- */
 .home__tabs {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 22px;
 }
 
 .home__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   padding: 0;
   font-size: 22px;
   font-weight: 500;
@@ -2518,7 +2521,6 @@ kbd {
   font-weight: 600;
   color: #1fa5ff;
   background: rgba(31, 165, 255, 0.14);
-  vertical-align: 3px;
 }
 
 .poster__mark {
@@ -2594,6 +2596,7 @@ kbd {
 .home__switch-menu button {
   display: flex;
   align-items: center;
+  gap: 10px;
   width: 100%;
   padding: 9px 12px;
   border-radius: 6px;
