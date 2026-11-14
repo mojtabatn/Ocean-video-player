@@ -8,18 +8,18 @@ import { isFinished, removeHistory, useHistory, type HistoryItem } from '../lib/
 
 const TAB_ICONS = {
   trending: (
-    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M2.5 14.2l5.1-5.1 3.2 3.2 6.2-6.3" />
       <path d="M12.6 6h4.4v4.4" />
     </svg>
   ),
   bookmarks: (
-    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden>
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" aria-hidden>
       <path d="M5 3h10a.8.8 0 0 1 .8.8v13a.5.5 0 0 1-.8.4L10 13.5l-5 3.7a.5.5 0 0 1-.8-.4v-13A.8.8 0 0 1 5 3Z" />
     </svg>
   ),
   history: (
-    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <circle cx="10" cy="10" r="7.2" />
       <path d="M10 5.8V10l2.8 1.8" />
     </svg>
@@ -260,7 +260,7 @@ export function Home({ onPick, onResume, onOpenFile, onOpenSettings }: Props) {
               );
             })()}
             <label className="home__search">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
+              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden>
                 <circle cx="9.2" cy="9.2" r="6.6" stroke="currentColor" strokeWidth="1.5" />
                 <path d="M14.2 14.2l3.6 3.6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
