@@ -162,8 +162,14 @@ export async function plan(info: MediaInfo): Promise<PlayPlan> {
 
 export async function open(input: string): Promise<OpenResult> {
   let src = input;
+  let originError: string | undefined;
   try {
-    if (isUrl(input) && /^https?:/i.test(input)) src = await cache.register(input).catch(() => input);
+    if (isUrl(input) && /^https?:/i.test(input)) {
+      src = await cache.register(input).catch((e: Error) => {
+        originError = e.message;
+        return input;
+      });
+    }
     const info = await probe(input, src);
     if (!info.video && info.audio.length === 0) return { ok: false, error: 'No playable audio or video found in this file.' };
     const p = await plan(info);
@@ -175,7 +181,8 @@ export async function open(input: string): Promise<OpenResult> {
     return { ok: true, sessionId, info, plan: p };
   } catch (e: any) {
     if (src !== input) cache.release(src);
-    return { ok: false, error: e?.stderr?.trim().split('\n').pop() || 'This file could not be opened.' };
+    // When the download server already refused the file, its answer explains more than ffprobe's message.
+    return { ok: false, error: originError || e?.stderr?.trim().split('\n').pop() || 'This file could not be opened.' };
   }
 }
 

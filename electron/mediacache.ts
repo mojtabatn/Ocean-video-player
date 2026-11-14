@@ -13,7 +13,7 @@ import { readFileSync, promises as fs } from 'node:fs';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import path from 'node:path';
-import { originFetch } from './online/http';
+import { describeOriginFailure, originFetch } from './online/http';
 
 const CHUNK = 4 * 1024 * 1024;
 const CHUNKS_PER_REQUEST = 4; // 16 MB per origin request
@@ -131,8 +131,8 @@ export async function register(url: string): Promise<string> {
   const id = createHash('sha1').update(url.replace(/[?&]v=\d+/, '')).digest('hex').slice(0, 20);
   let e = entries.get(id);
   if (!e) {
-    const loaded = await load(id, url).catch(() => null);
-    if (!loaded) return url;
+    const loaded = await load(id, url); // throws with the server's answer when it does not hand out the file
+    if (!loaded) throw new Error('The download server did not hand out the file.');
     e = loaded;
     entries.set(id, e);
   }
@@ -166,10 +166,15 @@ async function load(id: string, url: string): Promise<Entry | null> {
     /* new entry */
   }
   // Ask the origin for the size with a one-byte range request.
-  const res = await originFetch(url, { headers: { Range: 'bytes=0-0' } });
+  let res: Response;
+  try {
+    res = await originFetch(url, { headers: { Range: 'bytes=0-0' } });
+  } catch (err) {
+    throw new Error(await describeOriginFailure(url, null, err));
+  }
   const total = Number(/\/(\d+)$/.exec(res.headers.get('content-range') ?? '')?.[1]);
+  if (res.status !== 206 || !Number.isFinite(total) || total <= 0) throw new Error(await describeOriginFailure(url, res));
   res.body?.cancel().catch(() => {});
-  if (res.status !== 206 || !Number.isFinite(total) || total <= 0) return null;
   await fs.mkdir(dir, { recursive: true });
   const type = res.headers.get('content-type') || 'application/octet-stream';
   return { id, url, dir, size: total, type, have: new Set(), pending: new Map(), jobs: 0, active: 0, lastUsed: Date.now() };

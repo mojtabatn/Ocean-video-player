@@ -95,7 +95,9 @@ export async function sizes(urls: string[]): Promise<Record<string, number | nul
       let size: number | null = null;
       try {
         const res = await originFetch(url, { headers: { Range: 'bytes=0-0' }, signal: AbortSignal.timeout(10000) });
-        const total = /\/(\d+)$/.exec(res.headers.get('content-range') ?? '')?.[1] ?? (res.status === 200 ? res.headers.get('content-length') : null);
+        // A web page (login wall, error page) is not the file: its length says nothing about the video.
+        const page = /text\/html|text\/plain/i.test(res.headers.get('content-type') ?? '');
+        const total = page ? null : /\/(\d+)$/.exec(res.headers.get('content-range') ?? '')?.[1] ?? (res.status === 200 ? res.headers.get('content-length') : null);
         res.body?.cancel().catch(() => {});
         size = total ? Number(total) : null;
       } catch {

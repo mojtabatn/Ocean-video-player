@@ -1162,6 +1162,7 @@ export default function App() {
         {!isHome && snap.error && (
           <StageState
             kind={looksMissing(snap.error) ? 'missing' : 'format'}
+            detail={snap.error}
             onRetry={() => snap.input && play(snap.input, snap.title)}
           />
         )}

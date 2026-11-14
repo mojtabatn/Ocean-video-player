@@ -328,9 +328,78 @@ export async function handleImage(request: Request): Promise<Response> {
   }
 }
 
-/** Cookie-less request for the download servers (Chromium network stack, system proxy). */
-export function originFetch(url: string, init: RequestInit = {}) {
-  return guest().fetch(url, { credentials: 'omit', cache: 'no-store', ...init });
+/** A response that carries the file itself (not an error or a web page). */
+const isMedia = (res: Response) => res.status === 206 || (res.ok && !/text\/html|text\/plain/i.test(res.headers.get('content-type') ?? ''));
+
+/** Download hosts that only answered the signed-in session; later requests go there directly. */
+const accountHosts = new Set<string>();
+
+/**
+ * Request to a download server. First cookie-less (Chromium network stack, system proxy); if the server does
+ * not hand out the file that way (error status or a web page), retry once with the signed-in account session,
+ * since some servers only serve visitors who are logged in to the site.
+ */
+export async function originFetch(url: string, init: RequestInit = {}) {
+  const host = new URL(url).hostname;
+  const viaAccount = () => account().fetch(url, { credentials: 'include', cache: 'no-store', ...init });
+  if (accountHosts.has(host)) return viaAccount();
+  let first: Response | null = null;
+  let firstError: unknown = null;
+  try {
+    first = await guest().fetch(url, { credentials: 'omit', cache: 'no-store', ...init });
+    if (isMedia(first)) return first;
+  } catch (e) {
+    firstError = e;
+  }
+  try {
+    const alt = await viaAccount();
+    if (isMedia(alt)) {
+      first?.body?.cancel().catch(() => {});
+      accountHosts.add(host);
+      debug('download host needs the account session:', host);
+      return alt;
+    }
+    alt.body?.cancel().catch(() => {});
+  } catch {
+    /* keep the first answer */
+  }
+  if (first) return first;
+  throw firstError;
+}
+
+/**
+ * Human-readable reason a download server did not deliver the file. The server's answer is saved under
+ * diagnostics so it can be inspected; the message ends with "[file:<path>]" in that case.
+ */
+export async function describeOriginFailure(url: string, res: Response | null, error?: unknown): Promise<string> {
+  let host = url;
+  try {
+    host = new URL(url).hostname;
+  } catch {
+    /* keep the raw url */
+  }
+  if (!res) {
+    const msg = String((error as Error)?.message ?? error ?? 'no answer').replace(/^net::/, '');
+    return `Could not reach the download server (${host}): ${msg}`;
+  }
+  const type = res.headers.get('content-type') ?? '';
+  let file = '';
+  try {
+    const text = (await res.text()).slice(0, 20000);
+    await fs.mkdir(debugDir(), { recursive: true });
+    file = path.join(debugDir(), `download-${host}-${Date.now()}.txt`);
+    const headers = [...res.headers.entries()].map(([k, v]) => `${k}: ${v}`).join('\n');
+    await fs.writeFile(file, `URL: ${url}\nStatus: ${res.status} ${res.statusText}\n${headers}\n\n${text}`);
+  } catch {
+    file = '';
+  }
+  const what =
+    res.status >= 400
+      ? `answered ${res.status}${res.statusText ? ` ${res.statusText}` : ''}`
+      : /html|text/i.test(type)
+        ? 'sent a web page instead of the video'
+        : `answered ${res.status} without the file size`;
+  return `The download server (${host}) ${what}.${file ? ` [file:${file}]` : ''}`;
 }
 
 /** JSON from the site (WordPress REST API) through the account session. */
