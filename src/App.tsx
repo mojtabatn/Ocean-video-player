@@ -25,6 +25,8 @@ import { isFinished, recordHistory, type HistoryItem } from './lib/history';
 import { useSettings } from './lib/settings';
 import { useSizes } from './lib/sizes';
 import { useUpdates } from './lib/updates';
+import { StageState, looksMissing } from './components/StageState';
+import { Notices, type Notice, type NoticeKind } from './components/Notices';
 import { UpdateToast } from './components/UpdateToast';
 import { WhatsNewDialog } from './components/dialogs/WhatsNewDialog';
 import { cuesAt, decodeSubtitle, parseSubtitles, toSrt, type Cue } from './lib/subtitles';
@@ -126,6 +128,22 @@ export default function App() {
   const [adjust, setAdjust] = useState<VideoAdjust>(DEFAULT_ADJUST);
   const [ab, setAb] = useState<{ a?: number; b?: number }>({});
   const [cached, setCached] = useState<[number, number][]>([]);
+
+  // Success / warning / error cards (stacked, auto-closing).
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const noticeId = useRef(0);
+  const closeNotice = useCallback((id: number) => setNotices((l) => l.filter((n) => n.id !== id)), []);
+  const notify = useCallback(
+    (kind: NoticeKind, title: string, text: string) => {
+      const id = ++noticeId.current;
+      setNotices((l) => [...l.filter((n) => !(n.kind === kind && n.text === text)), { id, kind, title, text }].slice(-3));
+      window.setTimeout(() => closeNotice(id), kind === 'error' ? 7000 : 4500);
+    },
+    [closeNotice],
+  );
+  (window as unknown as { __oceanNotify: typeof notify }).__oceanNotify = notify;
+  const warn = useCallback((text: string) => notify('warning', 'There is a Problem', text), [notify]);
+  const fail = useCallback((text: string) => notify('error', 'Error Occurred', text), [notify]);
 
   const flash = useCallback((msg: string) => {
     setOsd(msg);
@@ -278,7 +296,7 @@ export default function App() {
       const ep = details.episodes[episode];
       const sources = ep ? ep.sources : details.sources;
       if (!sources.length) {
-        flash('No playable links found for this title');
+        warn('No playable links were found for this title');
         return;
       }
       const s = pickSource(sources, pref);
@@ -287,7 +305,7 @@ export default function App() {
       setPlIndex(-1);
       play(s.url, onlineName(details, episode), startAt);
     },
-    [play, flash],
+    [play, warn],
   );
 
   /** "Recently watched" card: reopen the title (fresh links) at the same episode, version and quality, where it stopped. */
@@ -307,10 +325,10 @@ export default function App() {
         }
         playOnline(details, episode, h.pref, start);
       } catch (e) {
-        flash(errMsg(e));
+        fail(errMsg(e));
       }
     },
-    [playOnline, flash],
+    [playOnline, flash, fail],
   );
 
   /** Poster click: open the picker (season / episode / version / quality), loading the title page meanwhile. */
@@ -456,14 +474,14 @@ export default function App() {
     (bytes: Uint8Array, label: string, slot: 'primary' | 'secondary' = 'primary') => {
       const cues = parseSubtitles(decodeSubtitle(bytes));
       if (!cues.length) {
-        flash('No subtitle lines found in that file');
+        warn('Check the subtitle file format and upload it again');
         return;
       }
       (slot === 'primary' ? setPrimary : setSecondary)({ label, cues });
       setSubsVisible(true);
-      flash(`Subtitle: ${label}`);
+      notify('success', 'Added Successfully', 'Your subtitle has been successfully added');
     },
-    [flash],
+    [warn, notify],
   );
 
   const loadSubtitlePath = useCallback(
@@ -474,10 +492,10 @@ export default function App() {
         if (/\.(srt|vtt|ass|ssa)$/i.test(path)) loadSubtitleBytes(await ocean.readFile(path), label, slot);
         else loadSubtitleBytes(new TextEncoder().encode(await ocean.convertSubtitle(path)), label, slot);
       } catch (e) {
-        flash(`Couldn’t read subtitle: ${errMsg(e)}`);
+        fail(`Couldn’t read the subtitle: ${errMsg(e)}`);
       }
     },
-    [loadSubtitleBytes, flash],
+    [loadSubtitleBytes, fail],
   );
 
   const chooseSubtitleFile = useCallback(
@@ -524,7 +542,7 @@ export default function App() {
         setSubsVisible(true);
         flash(`Subtitle: ${label}`);
       } catch (e) {
-        flash(`Couldn’t load subtitle: ${errMsg(e)}`);
+        fail(`Couldn’t load the subtitle: ${errMsg(e)}`);
       }
     },
     [snap.info, player, flash],
@@ -555,8 +573,8 @@ export default function App() {
     const base = (snap.title || 'subtitle').replace(/[\\/:*?"<>|]/g, '_');
     const cues = primary.live && primary.embedded !== undefined ? player.liveCuesFor(primary.embedded) : primary.cues;
     const path = await ocean.saveSubtitleDialog(`${base}.srt`, toSrt(cues, subDelay));
-    if (path) flash('Subtitle saved');
-  }, [primary, subDelay, snap.title, flash]);
+    if (path) notify('success', 'Saved Successfully', 'Your subtitle has been saved');
+  }, [primary, subDelay, snap.title, notify]);
 
   const subtitleOptions = useMemo(() => {
     const opts: { key: string; label: string; select: () => void; active: boolean }[] = [
@@ -617,9 +635,9 @@ export default function App() {
       if (document.pictureInPictureElement) await document.exitPictureInPicture();
       else if (snap.input) await player.video.requestPictureInPicture();
     } catch {
-      flash('Picture in picture is not available for this video');
+      warn('Picture in picture is not available for this video');
     }
-  }, [player, snap.input, flash]);
+  }, [player, snap.input, warn]);
 
   useEffect(() => {
     if (!ocean) return;
@@ -683,11 +701,11 @@ export default function App() {
   const takeScreenshot = useCallback(async () => {
     try {
       const p = await player.screenshot();
-      if (p) flash('Screenshot saved to Pictures\\Ocean');
+      if (p) notify('success', 'Saved Successfully', 'Screenshot saved to Pictures\\Ocean');
     } catch (e) {
-      flash(`Screenshot failed: ${errMsg(e)}`);
+      fail(`Screenshot failed: ${errMsg(e)}`);
     }
-  }, [player, flash]);
+  }, [player, notify, fail]);
 
   const toggleAb = useCallback(() => {
     if (ab.a === undefined) {
@@ -1139,9 +1157,16 @@ export default function App() {
             <SubtitleOverlay cues={primaryCues} style={settings.subtitleStyle} stageHeight={stage.h} />
           </>
         )}
-        {snap.loading && !isHome && !snap.error && <div className="stage__spinner" />}
-        {snap.error && <div className="stage__error">{snap.error}</div>}
+        {snap.loading && !isHome && !snap.error && snap.videoWidth > 0 && <div className="stage__spinner" />}
+        {!isHome && snap.loading && !snap.error && snap.videoWidth === 0 && <StageState kind="loading" onRetry={() => {}} />}
+        {!isHome && snap.error && (
+          <StageState
+            kind={looksMissing(snap.error) ? 'missing' : 'format'}
+            onRetry={() => snap.input && play(snap.input, snap.title)}
+          />
+        )}
         {osd && <div className="osd">{osd}</div>}
+        <Notices items={notices} onClose={closeNotice} />
         <UpdateToast u={updates} />
 
         {playlistOpen && (
