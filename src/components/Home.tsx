@@ -241,12 +241,6 @@ export function Home({ onPick, onResume, onOpenFile, onOpenSettings }: Props) {
                 </div>
               )}
             </div>
-            {tab === 'trending' && !results && !searching && <span className="home__subtitle">
-              <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
-                <path d="M2 1.2v7.6c0 .5.5.8.9.5l6-3.8c.4-.2.4-.8 0-1L2.9.7C2.5.4 2 .7 2 1.2Z" fill="currentColor" />
-              </svg>
-              Click a poster to watch online
-            </span>}
             {tab === 'trending' && error && (() => {
               // Errors may carry "[file:<path>]": the page the site returned, saved for diagnosis.
               const file = /\[file:(.+?)\]$/.exec(error)?.[1];

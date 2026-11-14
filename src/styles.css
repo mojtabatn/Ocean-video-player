@@ -2008,20 +2008,6 @@ kbd {
   color: #7a7a7a;
 }
 
-.home__subtitle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 4px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #8a8a8a;
-}
-
-.home__subtitle svg {
-  color: var(--accent-bright);
-}
-
 
 /* Home has no control bar (Figma: First View): the panel runs to 16 px above the window edge. */
 .app.is-home .stage {
@@ -2615,13 +2601,7 @@ kbd {
   color: #fff;
 }
 
-@container homehead (max-width: 1160px) {
-  .home__subtitle {
-    display: none;
-  }
-}
-
-@container homehead (max-width: 860px) {
+@container homehead (max-width: 1000px) {
   .home__tabs {
     display: none;
   }
