@@ -370,16 +370,19 @@ const accountHosts = new Set<string>();
  */
 export async function originFetch(url: string, init: RequestInit = {}) {
   const host = new URL(url).hostname;
-  const viaAccount = () => account().fetch(url, { credentials: 'include', cache: 'no-store', ...init });
-  if (accountHosts.has(host)) return viaAccount();
+  const viaAccount = () => limited(host, init.signal, () => account().fetch(url, { credentials: 'include', cache: 'no-store', ...init }));
+  const viaGuest = () => limited(host, init.signal, () => guest().fetch(url, { credentials: 'omit', cache: 'no-store', ...init }));
+  if (accountHosts.has(host)) return withRetry(viaAccount, init.signal);
   let first: Response | null = null;
   let firstError: unknown = null;
   try {
-    first = await guest().fetch(url, { credentials: 'omit', cache: 'no-store', ...init });
+    first = await withRetry(viaGuest, init.signal);
     if (isMedia(first)) return first;
   } catch (e) {
     firstError = e;
   }
+  // A busy server stays busy for the account session too; only a refusal is worth asking again as the account.
+  if (first && BUSY.has(first.status)) return first;
   try {
     const alt = await viaAccount();
     if (isMedia(alt)) {
@@ -394,6 +397,127 @@ export async function originFetch(url: string, init: RequestInit = {}) {
   }
   if (first) return first;
   throw firstError;
+}
+
+// ---------- Being gentle with download servers ----------
+
+/**
+ * Some download servers allow only a couple of connections per visitor and answer "503 Service Temporarily
+ * Unavailable" beyond that (or when they are briefly overloaded). Requests to one host therefore share a small
+ * number of slots — a slot is held until the response body is fully read or cancelled — and busy answers are
+ * retried after a pause.
+ */
+const PER_HOST = 2;
+const BUSY = new Set([429, 502, 503, 504]);
+const slots = new Map<string, { used: number; queue: (() => void)[] }>();
+
+/** Whether a request to this URL's host would start now rather than wait for a free slot. */
+export function hostHasRoom(url: string) {
+  try {
+    return (slots.get(new URL(url).hostname)?.used ?? 0) < PER_HOST;
+  } catch {
+    return true;
+  }
+}
+
+function acquire(host: string, signal?: AbortSignal | null): Promise<() => void> {
+  let s = slots.get(host);
+  if (!s) slots.set(host, (s = { used: 0, queue: [] }));
+  const state = s;
+  const release = () => {
+    const next = state.queue.shift();
+    if (next) next();
+    else state.used--;
+  };
+  if (state.used < PER_HOST) {
+    state.used++;
+    return Promise.resolve(once(release));
+  }
+  return new Promise((resolve, reject) => {
+    const grant = () => resolve(once(release));
+    state.queue.push(grant);
+    signal?.addEventListener('abort', () => {
+      const i = state.queue.indexOf(grant);
+      if (i >= 0) state.queue.splice(i, 1);
+      reject(signal.reason ?? new Error('aborted'));
+    });
+  });
+}
+
+function once(fn: () => void) {
+  let done = false;
+  return () => {
+    if (!done) {
+      done = true;
+      fn();
+    }
+  };
+}
+
+/** Runs a request inside a host slot; the slot is given back when the body ends, fails or is cancelled. */
+async function limited(host: string, signal: AbortSignal | null | undefined, run: () => Promise<Response>): Promise<Response> {
+  const release = await acquire(host, signal);
+  let res: Response;
+  try {
+    res = await run();
+  } catch (e) {
+    release();
+    throw e;
+  }
+  if (!res.body) {
+    release();
+    return res;
+  }
+  const reader = res.body.getReader();
+  // A body that nobody reads (or that stalls) must not hold the slot forever.
+  let idle: NodeJS.Timeout | undefined;
+  const touch = () => {
+    clearTimeout(idle);
+    idle = setTimeout(() => {
+      release();
+      reader.cancel().catch(() => {});
+    }, 60_000);
+  };
+  const finish = () => {
+    clearTimeout(idle);
+    release();
+  };
+  touch();
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      try {
+        const { done, value } = await reader.read();
+        if (done) {
+          finish();
+          controller.close();
+        } else {
+          touch();
+          controller.enqueue(value);
+        }
+      } catch (e) {
+        finish();
+        controller.error(e);
+      }
+    },
+    cancel(reason) {
+      finish();
+      return reader.cancel(reason);
+    },
+  });
+  return new Response(body, { status: res.status, statusText: res.statusText, headers: res.headers });
+}
+
+/** Retries busy answers (429/502/503/504) a few times, waiting longer each time (or as Retry-After says). */
+async function withRetry(run: () => Promise<Response>, signal?: AbortSignal | null): Promise<Response> {
+  for (let attempt = 0; ; attempt++) {
+    const res = await run();
+    if (!BUSY.has(res.status) || attempt >= 3 || signal?.aborted) return res;
+    const after = Number(res.headers.get('retry-after'));
+    const wait = Number.isFinite(after) && after > 0 ? Math.min(after, 8) * 1000 : 800 * 2 ** attempt;
+    debug(`download server busy (${res.status}), retrying in ${wait} ms`);
+    await res.body?.cancel().catch(() => {});
+    await new Promise((r) => setTimeout(r, wait));
+  }
 }
 
 /**

@@ -13,7 +13,7 @@ import { readFileSync, promises as fs } from 'node:fs';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import path from 'node:path';
-import { describeOriginFailure, originFetch } from './online/http';
+import { describeOriginFailure, hostHasRoom, originFetch } from './online/http';
 
 const CHUNK = 4 * 1024 * 1024;
 const CHUNKS_PER_REQUEST = 4; // 16 MB per origin request
@@ -212,10 +212,12 @@ async function fetchRun(e: Entry, first: number, n: number) {
   const start = ids[0] * CHUNK;
   const end = Math.min((ids[ids.length - 1] + 1) * CHUNK, e.size) - 1;
   let current = ids[0];
+  let res: Response | undefined;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   try {
-    const res = await originFetch(e.url, { headers: { Range: `bytes=${start}-${end}` } });
+    res = await originFetch(e.url, { headers: { Range: `bytes=${start}-${end}` } });
     if (res.status !== 206 || !res.body) throw new Error(`origin answered ${res.status}`);
-    const reader = res.body.getReader();
+    reader = res.body.getReader();
     let buf = Buffer.alloc(0);
     for (;;) {
       const { done, value } = await reader.read();
@@ -235,6 +237,9 @@ async function fetchRun(e: Entry, first: number, n: number) {
     }
     if (current <= ids[ids.length - 1]) throw new Error('origin closed the connection early');
   } catch (err) {
+    // Give the connection back to the server (and its per-host slot).
+    if (reader) reader.cancel().catch(() => {});
+    else res?.body?.cancel().catch(() => {});
     for (let i = current; i <= ids[ids.length - 1]; i++) {
       e.pending.get(i)?.reject(err);
       e.pending.delete(i);
@@ -265,6 +270,8 @@ function prefetch(e: Entry, from: number) {
   if (!e.active) return;
   const lastChunk = Math.min(chunkCount(e) - 1, from + READ_AHEAD);
   for (let i = from; i <= lastChunk && e.jobs < PREFETCH_JOBS; i++) {
+    // Read-ahead only uses a free connection; it never queues in front of what playback needs right now.
+    if (!hostHasRoom(e.url)) break;
     if (!e.have.has(i) && !e.pending.has(i)) fetchRun(e, i, CHUNKS_PER_REQUEST);
   }
 }
