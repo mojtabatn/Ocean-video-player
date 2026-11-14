@@ -126,7 +126,7 @@ Ocean can show what is trending on **Film2Media** and play it straight from the 
 ## Install
 
 1. Open the [**latest release**](https://github.com/mojtabatn/Ocean-video-player/releases/latest).
-2. Download **`Ocean-Player-Setup.exe`** and run it (installer, creates a Start-menu entry and file associations), **or** download the `…-win-x64.zip`, extract it somewhere and run `Ocean Player.exe`.
+2. Download **`Ocean-Player-Setup.exe`** and run it (installer, creates a Start-menu entry and file associations).
 3. Windows SmartScreen may warn because the app is not code-signed: choose **More info → Run anyway**.
 
 Requirements: Windows 10 or 11, 64-bit. A GPU with hardware HEVC decoding makes 4K HEVC files effortless; otherwise they are converted on the fly.
@@ -167,7 +167,7 @@ npm run dev          # Vite + Electron with hot reload
 npm run typecheck
 ```
 
-Package for Windows (installer + zip):
+Package for Windows (installer):
 
 ```bash
 npm run dist         # builds, downloads FFmpeg (vendor/ffmpeg/win32-x64), runs electron-builder
@@ -183,7 +183,7 @@ Optional pieces (none are required to build):
 
 ### Releases
 
-Push a tag such as `v0.2.0` (or publish a GitHub Release with that tag). The **Build Windows** workflow builds the installer and the zip on a Windows runner and attaches them to the release. Keep `version` in `package.json` equal to the tag — the in-app updater compares them. Add an `OMDB_KEY` repository secret to enable ratings in release builds.
+Push a tag such as `v0.2.0` (or publish a GitHub Release with that tag). The **Build Windows** workflow builds the installer on a Windows runner and attaches it to the release. Keep `version` in `package.json` equal to the tag — the in-app updater compares them. Add an `OMDB_KEY` repository secret to enable ratings in release builds.
 
 ### Project layout
 
