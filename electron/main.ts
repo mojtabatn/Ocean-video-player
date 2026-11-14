@@ -163,6 +163,7 @@ function registerIpc() {
   ipcMain.handle('cache:reset-dir', () => mediaCache.resetCacheDir());
   ipcMain.handle('cache:size', () => mediaCache.cacheSize());
   ipcMain.handle('cache:clear', () => mediaCache.clearCache());
+  ipcMain.handle('online:allow-expired-certs', (_e, on: boolean) => online.setAllowExpiredCerts(!!on));
   ipcMain.handle('cache:set-limit', (_e, bytes: number) => {
     mediaCache.setCacheLimit(bytes);
     return mediaCache.enforceLimit();

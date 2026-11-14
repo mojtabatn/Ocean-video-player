@@ -132,7 +132,7 @@ export async function register(url: string): Promise<string> {
   let e = entries.get(id);
   if (!e) {
     const loaded = await load(id, url); // throws with the server's answer when it does not hand out the file
-    if (!loaded) throw new Error('The download server did not hand out the file.');
+    if (!loaded) return url; // no range support: played straight from the server
     e = loaded;
     entries.set(id, e);
   }
@@ -173,7 +173,15 @@ async function load(id: string, url: string): Promise<Entry | null> {
     throw new Error(await describeOriginFailure(url, null, err));
   }
   const total = Number(/\/(\d+)$/.exec(res.headers.get('content-range') ?? '')?.[1]);
-  if (res.status !== 206 || !Number.isFinite(total) || total <= 0) throw new Error(await describeOriginFailure(url, res));
+  if (res.status !== 206 || !Number.isFinite(total) || total <= 0) {
+    // A server that sends the video but cannot do ranges is streamed directly (no cache); anything else is a refusal.
+    const plainFile = res.status === 200 && !/text\/html|text\/plain/i.test(res.headers.get('content-type') ?? '');
+    if (plainFile) {
+      res.body?.cancel().catch(() => {});
+      return null;
+    }
+    throw new Error(await describeOriginFailure(url, res));
+  }
   res.body?.cancel().catch(() => {});
   await fs.mkdir(dir, { recursive: true });
   const type = res.headers.get('content-type') || 'application/octet-stream';

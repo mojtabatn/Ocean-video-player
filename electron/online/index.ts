@@ -136,3 +136,4 @@ export async function search(query: string): Promise<OnlineTitle[]> {
     return parseSearchPage(html, url);
   }
 }
+export { setAllowExpiredCerts } from './http';

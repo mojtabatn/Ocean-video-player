@@ -188,6 +188,18 @@ export function SettingsDialog({
           </Button>
         )}
       </Row>
+      <Row
+        label="Play from servers with an expired certificate"
+        hint="Only for video download servers. Nothing from your account is sent to them, and the normal check returns by itself once the site renews its certificate."
+      >
+        <Toggle
+          checked={settings.allowExpiredCerts}
+          onChange={(allowExpiredCerts) => {
+            onChange({ allowExpiredCerts });
+            ocean?.setAllowExpiredCerts(allowExpiredCerts);
+          }}
+        />
+      </Row>
       <Row label="In use" hint={used === null ? undefined : gb(used)}>
         <Button
           variant="secondary"

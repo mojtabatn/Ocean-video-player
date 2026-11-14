@@ -157,6 +157,7 @@ export default function App() {
     host.appendChild(player.video);
     player.setVolume(settings.rememberVolume ? Math.min(settings.volume, settings.maxVolume) : 1);
     ocean?.setCacheLimit(settings.cacheLimitGb * 1024 ** 3);
+    ocean?.setAllowExpiredCerts(settings.allowExpiredCerts);
     const v = player.video;
     const onEnter = () => setPip(true);
     const onLeave = () => setPip(false);

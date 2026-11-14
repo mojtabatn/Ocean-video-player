@@ -38,10 +38,39 @@ function account() {
 let guestSession: Electron.Session | null = null;
 function guest() {
   if (!guestSession) {
-    guestSession = session.fromPartition('site-guest'); // in-memory
+    guestSession = session.fromPartition(`site-guest-${guestGeneration}`); // in-memory
     guestSession.setUserAgent(CHROME_UA, 'fa-IR,fa,en-US,en');
+    // Download servers sometimes let their certificate lapse for a while. This session only ever fetches video
+    // files and never carries cookies, so an *expired* certificate is accepted here (when allowed in Settings).
+    // Any other certificate problem is still refused, and once the server renews its certificate the normal
+    // check applies again by itself.
+    guestSession.setCertificateVerifyProc((req, done) => {
+      const expired = req.errorCode === ERR_CERT_DATE_INVALID || /ERR_CERT_DATE_INVALID/.test(req.verificationResult ?? '');
+      if (expired && allowExpiredCerts) {
+        if (!warnedHosts.has(req.hostname)) {
+          warnedHosts.add(req.hostname);
+          debug('accepting expired certificate of download server', req.hostname);
+        }
+        done(0);
+      } else {
+        done(-3); // Chromium's own verdict
+      }
+    });
   }
   return guestSession;
+}
+
+const ERR_CERT_DATE_INVALID = -201;
+let allowExpiredCerts = true;
+const warnedHosts = new Set<string>();
+let guestGeneration = 0;
+export function setAllowExpiredCerts(on: boolean) {
+  if (on === allowExpiredCerts) return;
+  allowExpiredCerts = on;
+  // Chromium remembers certificate verdicts per session; a fresh session makes the new choice apply at once.
+  guestSession?.closeAllConnections().catch(() => {});
+  guestSession = null;
+  guestGeneration++;
 }
 
 /** Older versions kept site cookies in another persistent session; remove them. */

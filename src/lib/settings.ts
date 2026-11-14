@@ -39,6 +39,8 @@ export type Settings = {
   normalize: boolean;
   /** Disk cache for online playback, in GB. */
   cacheLimitGb: number;
+  /** Still play from download servers whose security certificate has expired (download servers only, no cookies). */
+  allowExpiredCerts: boolean;
   /** Look for new Ocean versions on GitHub and show a message when one is ready. */
   autoUpdateCheck: boolean;
 };
@@ -77,6 +79,7 @@ export const DEFAULT_SETTINGS: Settings = {
   eqPreset: 'Flat',
   normalize: false,
   cacheLimitGb: 3,
+  allowExpiredCerts: true,
   autoUpdateCheck: true,
 };
 

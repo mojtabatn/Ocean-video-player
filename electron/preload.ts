@@ -34,6 +34,7 @@ const api = {
   resetCacheDir: (): Promise<{ dir: string; isDefault: boolean }> => ipcRenderer.invoke('cache:reset-dir'),
   cacheSize: (): Promise<number> => ipcRenderer.invoke('cache:size'),
   clearCache: (): Promise<void> => ipcRenderer.invoke('cache:clear'),
+  setAllowExpiredCerts: (on: boolean): Promise<void> => ipcRenderer.invoke('online:allow-expired-certs', on),
   setCacheLimit: (bytes: number): Promise<number> => ipcRenderer.invoke('cache:set-limit', bytes),
   ensureSubtitles: (id: string, t: number): Promise<void> => ipcRenderer.invoke('media:subtitles', id, t),
   keyframeBefore: (id: string, t: number, audio?: number): Promise<{ seek: number; origin: number }> => ipcRenderer.invoke('media:keyframe', id, t, audio),

@@ -165,10 +165,13 @@ export async function open(input: string): Promise<OpenResult> {
   let originError: string | undefined;
   try {
     if (isUrl(input) && /^https?:/i.test(input)) {
+      // A refusal from the download server (error, web page, unreachable, bad certificate) ends here: reading
+      // the same URL directly with ffmpeg would only hide the reason, and ffmpeg does not check certificates.
       src = await cache.register(input).catch((e: Error) => {
         originError = e.message;
         return input;
       });
+      if (originError) return { ok: false, error: originError };
     }
     const info = await probe(input, src);
     if (!info.video && info.audio.length === 0) return { ok: false, error: 'No playable audio or video found in this file.' };
