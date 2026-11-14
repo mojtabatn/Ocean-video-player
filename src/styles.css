@@ -2612,17 +2612,49 @@ kbd {
   color: #fff;
 }
 
-@container homehead (max-width: 960px) {
+@container homehead (max-width: 1160px) {
   .home__subtitle {
     display: none;
   }
 }
 
-@container homehead (max-width: 720px) {
+@container homehead (max-width: 860px) {
   .home__tabs {
     display: none;
   }
   .home__switch {
     display: block;
   }
+}
+
+/* Recently watched: episode chip + progress bar */
+.poster__chip {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(6px);
+}
+
+.poster__progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.poster__progress span {
+  display: block;
+  height: 100%;
+  background: #1fa5ff;
 }

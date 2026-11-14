@@ -21,6 +21,7 @@ import { eventToKey, keymap, keysFor, prettyKey, type ActionId } from './lib/act
 import { ocean } from './lib/bridge';
 import { formatTime } from './lib/format';
 import { addRecent, clearRecent, getPosition, getRecent, savePosition, tagRecent } from './lib/library';
+import { isFinished, recordHistory, type HistoryItem } from './lib/history';
 import { useSettings } from './lib/settings';
 import { useSizes } from './lib/sizes';
 import { useUpdates } from './lib/updates';
@@ -194,13 +195,13 @@ export default function App() {
   };
 
   const play = useCallback(
-    (input: string, title?: string) => {
+    (input: string, title?: string, startAt?: number) => {
       resetPerFile();
       const t = title ?? titleFromInput(input);
       addRecent(input, t);
       player.load(input, {
         title: t,
-        startAt: settings.resumePlayback ? getPosition(input) : undefined,
+        startAt: startAt !== undefined ? startAt : settings.resumePlayback ? getPosition(input) : undefined,
         audioLanguage: settings.preferredAudioLanguage || undefined,
       });
     },
@@ -273,7 +274,7 @@ export default function App() {
 
   /** Plays a movie or an episode; keeps the chosen dub/subtitle version and quality across episodes. */
   const playOnline = useCallback(
-    (details: OnlineDetails, episode: number, pref?: SourcePref) => {
+    (details: OnlineDetails, episode: number, pref?: SourcePref, startAt?: number) => {
       const ep = details.episodes[episode];
       const sources = ep ? ep.sources : details.sources;
       if (!sources.length) {
@@ -284,9 +285,32 @@ export default function App() {
       setOnline({ details, episode, source: s });
       setPlaylist([]);
       setPlIndex(-1);
-      play(s.url, onlineName(details, episode));
+      play(s.url, onlineName(details, episode), startAt);
     },
     [play, flash],
+  );
+
+  /** "Recently watched" card: reopen the title (fresh links) at the same episode, version and quality, where it stopped. */
+  const resumeOnline = useCallback(
+    async (h: HistoryItem) => {
+      if (!ocean) return;
+      flash('Loading…');
+      try {
+        const details = await ocean.onlineDetails(h.title);
+        const idx = details.episodes.findIndex((e) => e.season === h.season && e.episode === h.episode);
+        let episode = Math.max(0, idx);
+        let start = h.position >= 10 ? h.position : 0;
+        if (isFinished(h)) {
+          // Finished: a series moves on to the next episode, anything else starts over.
+          start = 0;
+          if (idx >= 0 && idx < details.episodes.length - 1) episode = idx + 1;
+        }
+        playOnline(details, episode, h.pref, start);
+      } catch (e) {
+        flash(errMsg(e));
+      }
+    },
+    [playOnline, flash],
   );
 
   /** Poster click: open the picker (season / episode / version / quality), loading the title page meanwhile. */
@@ -378,6 +402,36 @@ export default function App() {
       savePosition(snap.input, snap.time, snap.duration);
     }
   }, [snap.time, snap.input, snap.duration, snap.loading]);
+
+  // Watch history for the home screen (online titles): progress every few seconds, final state on finish / leaving.
+  const lastRecorded = useRef(0);
+  const recordNow = useCallback(
+    (position: number, duration: number) => {
+      if (!online || !duration) return;
+      const ep = online.details.episodes[online.episode];
+      recordHistory({
+        id: online.details.title.id,
+        title: online.details.title,
+        season: ep?.season,
+        episode: ep?.episode,
+        position,
+        duration,
+        pref: { group: online.source.group, label: online.source.label, encoder: online.source.encoder },
+      });
+    },
+    [online],
+  );
+  useEffect(() => {
+    if (!online || !snap.input || !snap.duration || snap.loading) return;
+    if (Math.abs(snap.time - lastRecorded.current) >= 5) {
+      lastRecorded.current = snap.time;
+      recordNow(snap.time, snap.duration);
+    }
+  }, [snap.time, snap.input, snap.duration, snap.loading, online, recordNow]);
+  useEffect(() => {
+    if (snap.ended) recordNow(snap.duration, snap.duration);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snap.ended]);
 
   // Downloaded parts of online files, refreshed while playing.
   useEffect(() => {
@@ -526,6 +580,7 @@ export default function App() {
   /** Back to the first view: stops playback and clears the queue; the position is already saved for resume. */
   const goHome = useCallback(() => {
     if (snap.input) savePosition(snap.input, snap.time, snap.duration);
+    if (online && !snap.ended) recordNow(snap.time, snap.duration);
     player.unload();
     resetPerFile();
     setOnline(null);
@@ -533,7 +588,7 @@ export default function App() {
     setPlIndex(-1);
     setPlaylistOpen(false);
     setPicker(null);
-  }, [player, snap.input, snap.time, snap.duration]);
+  }, [player, snap.input, snap.time, snap.duration, snap.ended, online, recordNow]);
 
   // ---------- window modes ----------
   const toggleFullscreen = useCallback(() => {
@@ -1076,7 +1131,7 @@ export default function App() {
         }}
       >
         <div ref={videoHost} className="stage__host" hidden={isHome} />
-        {isHome && <Home onPick={pickOnline} onOpenFile={openDialog} onOpenSettings={() => setDialog('settings')} />}
+        {isHome && <Home onPick={pickOnline} onResume={resumeOnline} onOpenFile={openDialog} onOpenSettings={() => setDialog('settings')} />}
 
         {!isHome && (
           <>

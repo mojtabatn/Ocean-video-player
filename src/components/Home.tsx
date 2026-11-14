@@ -4,20 +4,22 @@ import logo from '../assets/logo.svg';
 import { useAccount } from '../lib/account';
 import { ocean } from '../lib/bridge';
 import { toggleBookmark, useBookmarks } from '../lib/bookmarks';
+import { isFinished, removeHistory, useHistory, type HistoryItem } from '../lib/history';
 
-type Props = { onPick: (t: OnlineTitle) => void; onOpenFile: () => void; onOpenSettings: () => void };
+type Props = { onPick: (t: OnlineTitle) => void; onResume: (h: HistoryItem) => void; onOpenFile: () => void; onOpenSettings: () => void };
 
 const CARD = 180;
 const GAP = 16;
 
 /** First view (Figma: "Property 1 = Default - Select"). */
-export function Home({ onPick, onOpenFile, onOpenSettings }: Props) {
+export function Home({ onPick, onResume, onOpenFile, onOpenSettings }: Props) {
   const [titles, setTitles] = useState<OnlineTitle[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const rail = useRef<HTMLDivElement>(null);
 
   // Search covers the whole site archive; results take the place of the trending items.
-  const [tab, setTab] = useState<'trending' | 'bookmarks'>('trending');
+  const [tab, setTab] = useState<'trending' | 'bookmarks' | 'history'>('trending');
+  const history = useHistory();
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
     if (!menuOpen) return;
@@ -89,7 +91,9 @@ export function Home({ onPick, onOpenFile, onOpenSettings }: Props) {
   // search results start at the first one).
   const q = query.trim().toLowerCase();
   const savedShown = bookmarks.filter((b) => !q || `${b.title} ${b.persianTitle ?? ''}`.toLowerCase().includes(q));
-  const shown = tab === 'bookmarks' ? savedShown : results ?? titles;
+  const historyShown = history.filter((h) => !q || `${h.title.title} ${h.title.persianTitle ?? ''}`.toLowerCase().includes(q));
+  const shown: OnlineTitle[] | null =
+    tab === 'bookmarks' ? savedShown : tab === 'history' ? historyShown.map((h) => h.title) : results ?? titles;
 
   // IMDb ratings the site did not give (OMDb, cached), filled in quietly after the posters show.
   const [ratings, setRatings] = useState<Record<string, string | null>>({});
@@ -148,8 +152,9 @@ export function Home({ onPick, onOpenFile, onOpenSettings }: Props) {
   };
 
   const marks = tab === 'bookmarks';
-  const skeleton = !marks && (shown === null || shown.length === 0) && !(results && !searching);
-  const noResults = marks ? savedShown.length === 0 : !!results && results.length === 0 && !searching;
+  const hist = tab === 'history';
+  const skeleton = tab === 'trending' && (shown === null || shown.length === 0) && !(results && !searching);
+  const noResults = marks ? savedShown.length === 0 : hist ? historyShown.length === 0 : !!results && results.length === 0 && !searching;
 
   return (
     <div className="home">
@@ -173,19 +178,22 @@ export function Home({ onPick, onOpenFile, onOpenSettings }: Props) {
       {signedIn && (
         <section className="home__section">
           <header className="home__head">
-            {/* Wide: two tabs side by side. Narrow (container query): one title that opens a small menu. */}
+            {/* Wide: tabs side by side. Narrow (container query): one title that opens a small menu. */}
             <div className="home__tabs" role="tablist">
-              <button role="tab" aria-selected={!marks} className={`home__tab ${!marks ? 'is-active' : ''}`} onClick={() => setTab('trending')}>
-                {results || searching ? `Results for “${query.trim()}”` : 'Trending Now'}
+              <button role="tab" aria-selected={tab === 'trending'} className={`home__tab ${tab === 'trending' ? 'is-active' : ''}`} onClick={() => setTab('trending')}>
+                {tab === 'trending' && (results || searching) ? `Results for “${query.trim()}”` : 'Trending Now'}
               </button>
               <button role="tab" aria-selected={marks} className={`home__tab ${marks ? 'is-active' : ''}`} onClick={() => setTab('bookmarks')}>
                 Bookmarks{bookmarks.length ? <span className="home__count">{bookmarks.length}</span> : null}
+              </button>
+              <button role="tab" aria-selected={hist} className={`home__tab ${hist ? 'is-active' : ''}`} onClick={() => setTab('history')}>
+                Recently Watched
               </button>
             </div>
             <div className="home__switch" onPointerDown={(e) => e.stopPropagation()}>
               <button className="home__tab is-active home__switch-btn" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}>
                 <span className="home__switch-label">
-                  {marks ? 'Bookmarks' : results || searching ? `Results for “${query.trim()}”` : 'Trending Now'}
+                  {marks ? 'Bookmarks' : hist ? 'Recently Watched' : results || searching ? `Results for “${query.trim()}”` : 'Trending Now'}
                 </span>
                 {marks && bookmarks.length ? <span className="home__count">{bookmarks.length}</span> : null}
                 <svg width="12" height="8" viewBox="0 0 12 8" fill="none" aria-hidden>
@@ -194,22 +202,25 @@ export function Home({ onPick, onOpenFile, onOpenSettings }: Props) {
               </button>
               {menuOpen && (
                 <div className="home__switch-menu" role="menu">
-                  <button role="menuitem" className={!marks ? 'is-active' : ''} onClick={() => { setTab('trending'); setMenuOpen(false); }}>
+                  <button role="menuitem" className={tab === 'trending' ? 'is-active' : ''} onClick={() => { setTab('trending'); setMenuOpen(false); }}>
                     Trending Now
                   </button>
                   <button role="menuitem" className={marks ? 'is-active' : ''} onClick={() => { setTab('bookmarks'); setMenuOpen(false); }}>
                     Bookmarks{bookmarks.length ? <span className="home__count">{bookmarks.length}</span> : null}
                   </button>
+                  <button role="menuitem" className={hist ? 'is-active' : ''} onClick={() => { setTab('history'); setMenuOpen(false); }}>
+                    Recently Watched
+                  </button>
                 </div>
               )}
             </div>
-            {!marks && !results && !searching && <span className="home__subtitle">
+            {tab === 'trending' && !results && !searching && <span className="home__subtitle">
               <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
                 <path d="M2 1.2v7.6c0 .5.5.8.9.5l6-3.8c.4-.2.4-.8 0-1L2.9.7C2.5.4 2 .7 2 1.2Z" fill="currentColor" />
               </svg>
               Click a poster to watch online
             </span>}
-            {!marks && error && (() => {
+            {tab === 'trending' && error && (() => {
               // Errors may carry "[file:<path>]": the page the site returned, saved for diagnosis.
               const file = /\[file:(.+?)\]$/.exec(error)?.[1];
               const text = error.replace(/\s*\[file:.+?\]$/, '');
@@ -235,7 +246,7 @@ export function Home({ onPick, onOpenFile, onOpenSettings }: Props) {
               <input
                 type="search"
                 value={query}
-                placeholder={marks ? 'Search bookmarks...' : 'Search movies & series...'}
+                placeholder={marks ? 'Search bookmarks...' : hist ? 'Search history...' : 'Search movies & series...'}
                 spellCheck={false}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => {
@@ -283,35 +294,58 @@ export function Home({ onPick, onOpenFile, onOpenSettings }: Props) {
           >
             {noResults ? (
               <div className="home__empty">
-                {marks && !bookmarks.length ? 'No bookmarks yet. Tap the bookmark icon on a poster to keep it here.' : `Nothing found for “${query.trim()}”.`}
+                {marks && !bookmarks.length
+                  ? 'No bookmarks yet. Tap the bookmark icon on a poster to keep it here.'
+                  : hist && !history.length
+                    ? 'Nothing watched yet. Titles you watch show up here, ready to continue.'
+                    : `Nothing found for “${query.trim()}”.`}
               </div>
             ) : skeleton
               ? Array.from({ length: 10 }, (_, i) => <div key={i} className={`poster poster--skeleton ${shown === null || searching ? 'is-loading' : ''}`} />)
-              : shown!.map((t) => (
+              : shown!.map((t) => {
+                  const h = hist ? history.find((x) => x.id === t.id) : undefined;
+                  return (
                   <div
                     key={t.id}
                     className="poster"
                     role="button"
                     tabIndex={0}
-                    onClick={() => onPick(t)}
-                    onKeyDown={(e) => e.key === 'Enter' && onPick(t)}
+                    onClick={() => (h ? onResume(h) : onPick(t))}
+                    onKeyDown={(e) => e.key === 'Enter' && (h ? onResume(h) : onPick(t))}
                     aria-label={t.title}
                   >
-                    <button
-                      className={`poster__mark ${bookmarks.some((b) => b.id === t.id) ? 'is-on' : ''}`}
-                      aria-label={bookmarks.some((b) => b.id === t.id) ? 'Remove bookmark' : 'Bookmark'}
-                      aria-pressed={bookmarks.some((b) => b.id === t.id)}
-                      title={bookmarks.some((b) => b.id === t.id) ? 'Remove bookmark' : 'Bookmark'}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleBookmark(t);
-                      }}
-                      onPointerDown={(e) => e.stopPropagation()}
-                    >
-                      <svg width="16" height="18" viewBox="0 0 16 18" aria-hidden>
-                        <path d="M2.5 1.75h11a.75.75 0 0 1 .75.75v13.6a.5.5 0 0 1-.8.4L8 12.4l-5.45 4.1a.5.5 0 0 1-.8-.4V2.5a.75.75 0 0 1 .75-.75Z" fill="currentColor" fillOpacity="var(--mark-fill, 0)" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-                      </svg>
-                    </button>
+                    {h ? (
+                      <button
+                        className="poster__mark"
+                        aria-label="Remove from history"
+                        title="Remove from history"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeHistory(h.id);
+                        }}
+                        onPointerDown={(e) => e.stopPropagation()}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" aria-hidden>
+                          <path d="M.5.5l9 9M9.5.5l-9 9" />
+                        </svg>
+                      </button>
+                    ) : (
+                      <button
+                        className={`poster__mark ${bookmarks.some((b) => b.id === t.id) ? 'is-on' : ''}`}
+                        aria-label={bookmarks.some((b) => b.id === t.id) ? 'Remove bookmark' : 'Bookmark'}
+                        aria-pressed={bookmarks.some((b) => b.id === t.id)}
+                        title={bookmarks.some((b) => b.id === t.id) ? 'Remove bookmark' : 'Bookmark'}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleBookmark(t);
+                        }}
+                        onPointerDown={(e) => e.stopPropagation()}
+                      >
+                        <svg width="16" height="18" viewBox="0 0 16 18" aria-hidden>
+                          <path d="M2.5 1.75h11a.75.75 0 0 1 .75.75v13.6a.5.5 0 0 1-.8.4L8 12.4l-5.45 4.1a.5.5 0 0 1-.8-.4V2.5a.75.75 0 0 1 .75-.75Z" fill="currentColor" fillOpacity="var(--mark-fill, 0)" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                    )}
                     <img
                       src={ocean ? `ocean-img://i/?u=${encodeURIComponent(t.poster)}` : t.poster}
                       alt=""
@@ -320,6 +354,14 @@ export function Home({ onPick, onOpenFile, onOpenSettings }: Props) {
                       onError={(e) => e.currentTarget.parentElement?.classList.add('poster--noimage')}
                     />
                     <span className="poster__fallback" dir="auto">{t.title}</span>
+                    {h && h.season !== undefined && h.episode !== undefined && (
+                      <span className="poster__chip">S{String(h.season).padStart(2, '0')} · E{String(h.episode).padStart(2, '0')}</span>
+                    )}
+                    {h && (
+                      <span className="poster__progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(isFinished(h) ? 100 : (h.position / Math.max(1, h.duration)) * 100)}>
+                        <span style={{ width: `${isFinished(h) ? 100 : Math.min(100, (h.position / Math.max(1, h.duration)) * 100)}%` }} />
+                      </span>
+                    )}
                     <span className="poster__caption" dir="auto">
                       {t.title}
                       {(t.imdb ?? ratings[t.id]) && (
@@ -330,7 +372,8 @@ export function Home({ onPick, onOpenFile, onOpenSettings }: Props) {
                       )}
                     </span>
                   </div>
-                ))}
+                  );
+                })}
           </div>
         </section>
       )}
