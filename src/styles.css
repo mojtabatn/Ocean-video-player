@@ -2125,11 +2125,6 @@ kbd {
   color: #fff;
 }
 
-.controls__volume {
-  width: 122px;
-  margin-left: 2px;
-}
-
 .controls__time {
   margin-left: 12px;
 }
@@ -2139,7 +2134,7 @@ kbd {
 }
 
 .controls__volume {
-  width: 124px;
+  width: 64px;
   margin-left: 0;
 }
 
